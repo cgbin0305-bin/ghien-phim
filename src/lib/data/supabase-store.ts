@@ -490,22 +490,30 @@ export function createSupabaseStore(client: Db): DataStore {
     mode: "supabase",
 
     async getSettings() {
-      const { data, error } = await client.from("site_settings").select("*").eq("id", 1).maybeSingle();
-      if (error) throw new Error(error.message);
-      if (!data) return EMPTY_SETTINGS;
-      const row = data as Record<string, unknown>;
-      return {
-        siteName: (row.site_name as string) ?? EMPTY_SETTINGS.siteName,
-        siteDescription: (row.site_description as string) ?? null,
-        logoUrl: (row.logo_url as string) ?? null,
-        contactEmail: (row.contact_email as string) ?? null,
-        contactNote: (row.contact_note as string) ?? null,
-        seoTitle: (row.seo_title as string) ?? null,
-        seoDescription: (row.seo_description as string) ?? null,
-        ogImageUrl: (row.og_image_url as string) ?? null,
-        featuredMovieId: (row.featured_movie_id as string) ?? null,
-        updatedAt: (row.updated_at as string) ?? EMPTY_SETTINGS.updatedAt,
-      };
+      try {
+        const { data, error } = await client.from("site_settings").select("*").eq("id", 1).maybeSingle();
+        if (error) {
+          console.warn("[supabase-store] Lỗi đọc site_settings, dùng giá trị mặc định:", error.message);
+          return EMPTY_SETTINGS;
+        }
+        if (!data) return EMPTY_SETTINGS;
+        const row = data as Record<string, unknown>;
+        return {
+          siteName: (row.site_name as string) ?? EMPTY_SETTINGS.siteName,
+          siteDescription: (row.site_description as string) ?? null,
+          logoUrl: (row.logo_url as string) ?? null,
+          contactEmail: (row.contact_email as string) ?? null,
+          contactNote: (row.contact_note as string) ?? null,
+          seoTitle: (row.seo_title as string) ?? null,
+          seoDescription: (row.seo_description as string) ?? null,
+          ogImageUrl: (row.og_image_url as string) ?? null,
+          featuredMovieId: (row.featured_movie_id as string) ?? null,
+          updatedAt: (row.updated_at as string) ?? EMPTY_SETTINGS.updatedAt,
+        };
+      } catch (err) {
+        console.warn("[supabase-store] Ngoại lệ khi đọc site_settings, dùng giá trị mặc định:", err);
+        return EMPTY_SETTINGS;
+      }
     },
 
     async updateSettings(patch) {

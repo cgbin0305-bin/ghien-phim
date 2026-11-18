@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { Search, Sparkles } from "lucide-react";
 import { getPublicStore } from "@/lib/data";
 import { BrandLogo } from "@/components/layout/brand-logo";

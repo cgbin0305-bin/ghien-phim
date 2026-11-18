@@ -37,3 +37,48 @@ export function getDataMode(): DataMode {
 }
 
 export const isDemoMode = !hasSupabaseConfig;
+
+/**
+ * Lấy URL gốc chuẩn của website một cách an toàn tuyệt đối.
+ * - Tự động bổ sung `https://` nếu người dùng chỉ nhập domain (ví dụ: `ghien-phim.vercel.app`).
+ * - Tự động nhận diện domain Vercel cấp nếu người dùng chưa cài đặt `NEXT_PUBLIC_SITE_URL`.
+ * - Luôn trả về URL hợp lệ, không bao giờ văng ngoại lệ Invalid URL làm sập build.
+ */
+export function getSiteUrl(): string {
+  const customUrl = clean(process.env.NEXT_PUBLIC_SITE_URL);
+  if (customUrl) {
+    try {
+      const normalized = customUrl.startsWith("http://") || customUrl.startsWith("https://")
+        ? customUrl
+        : `https://${customUrl}`;
+      return new URL(normalized).origin;
+    } catch {
+      // Bỏ qua nếu giá trị chuỗi không phân tích được
+    }
+  }
+
+  const vercelUrl =
+    clean(process.env.VERCEL_PROJECT_PRODUCTION_URL) ||
+    clean(process.env.NEXT_PUBLIC_VERCEL_URL) ||
+    clean(process.env.VERCEL_URL);
+
+  if (vercelUrl) {
+    try {
+      const normalized = vercelUrl.startsWith("http://") || vercelUrl.startsWith("https://")
+        ? vercelUrl
+        : `https://${vercelUrl}`;
+      return new URL(normalized).origin;
+    } catch {
+      // Bỏ qua
+    }
+  }
+
+  return "http://localhost:3000";
+}
+
+/**
+ * Lấy đối tượng URL gốc cho metadataBase.
+ */
+export function getSiteUrlObject(): URL {
+  return new URL(getSiteUrl());
+}

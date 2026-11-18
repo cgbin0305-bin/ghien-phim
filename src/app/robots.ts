@@ -1,7 +1,9 @@
 import type { MetadataRoute } from "next";
-import { isDemoMode } from "@/lib/env";
+import { isDemoMode, getSiteUrl } from "@/lib/env";
 
 export default function robots(): MetadataRoute.Robots {
+  const baseUrl = getSiteUrl();
+
   if (isDemoMode) {
     return {
       rules: [{ userAgent: "*", disallow: "/" }],
@@ -17,6 +19,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/admin/", "/api/"],
       },
     ],
-    sitemap: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/sitemap.xml`,
+    sitemap: `${baseUrl}/sitemap.xml`,
   };
 }

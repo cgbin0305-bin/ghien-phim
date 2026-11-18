@@ -5,8 +5,29 @@ import { SITE_TIMEZONE } from "@/lib/env";
 import { BrandLogo } from "@/components/layout/brand-logo";
 
 export async function SiteFooter() {
-  const store = await getPublicStore();
-  const settings = await store.getSettings();
+  let settings = {
+    siteName: "Ghiền Phim",
+    siteDescription: "Nơi tập hợp phim cổ trang, tiên hiệp, kiếm hiệp và cung đấu Trung Quốc kèm phụ đề tiếng Việt.",
+    logoUrl: null as string | null,
+    contactEmail: null as string | null,
+    contactNote: null as string | null,
+  };
+
+  try {
+    const store = await getPublicStore();
+    const fetched = await store.getSettings();
+    if (fetched) {
+      settings = {
+        siteName: fetched.siteName || "Ghiền Phim",
+        siteDescription: fetched.siteDescription || settings.siteDescription,
+        logoUrl: fetched.logoUrl ?? null,
+        contactEmail: fetched.contactEmail ?? null,
+        contactNote: fetched.contactNote ?? null,
+      };
+    }
+  } catch (err) {
+    console.warn("[SiteFooter] Không thể tải settings:", err);
+  }
 
   return (
     <footer className="mt-16 border-t border-ink-700/70 bg-ink-950/60">

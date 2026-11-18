@@ -1,0 +1,35 @@
+import { ImageResponse } from "next/og";
+
+export const size = {
+  width: 180,
+  height: 180,
+};
+export const contentType = "image/png";
+
+export default function AppleIcon() {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#0B0C10",
+          borderRadius: "36px",
+          border: "4px solid #D4AF37",
+          color: "#F6E7B0",
+          fontSize: "100px",
+          fontWeight: 700,
+          fontFamily: "serif",
+        }}
+      >
+        閣
+      </div>
+    ),
+    {
+      ...size,
+    }
+  );
+}

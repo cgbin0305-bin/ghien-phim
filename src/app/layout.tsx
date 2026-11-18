@@ -6,7 +6,21 @@ import { ToastProvider } from "@/components/ui/toast";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { DemoBanner } from "@/components/layout/demo-banner";
-import { isDemoMode } from "@/lib/env";
+import { isDemoMode, getSiteUrlObject } from "@/lib/env";
+import type { SiteSettings } from "@/lib/types";
+
+const DEFAULT_SETTINGS: SiteSettings = {
+  siteName: "Ghiền Phim",
+  siteDescription: "Xem phim cổ trang, tiên hiệp, kiếm hiệp và cung đấu Trung Quốc kèm phụ đề tiếng Việt.",
+  logoUrl: null,
+  contactEmail: null,
+  contactNote: null,
+  seoTitle: null,
+  seoDescription: null,
+  ogImageUrl: null,
+  featuredMovieId: null,
+  updatedAt: "2026-01-01T00:00:00.000Z",
+};
 
 const serif = Cormorant_Garamond({
   subsets: ["vietnamese", "latin"],
@@ -29,26 +43,33 @@ export const viewport: Viewport = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const store = await getPublicStore();
-  const settings = await store.getSettings();
+  let settings: SiteSettings = DEFAULT_SETTINGS;
+  try {
+    const store = await getPublicStore();
+    const fetched = await store.getSettings();
+    if (fetched) {
+      settings = fetched;
+    }
+  } catch (err) {
+    console.warn("[layout] Không thể tải cấu hình site, sử dụng mặc định:", err);
+  }
 
   const title = settings.seoTitle ?? settings.siteName;
   const description =
     settings.seoDescription ??
     settings.siteDescription ??
-    "Xem phim cổ trang, tiên hiệm, kiếm hiệp và cung đấu Trung Hoại kèm phụ đề tiếng Việt.";
-
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+    DEFAULT_SETTINGS.siteDescription ??
+    "Xem phim cổ trang, tiên hiệp, kiếm hiệp và cung đấu Trung Quốc kèm phụ đề tiếng Việt.";
 
   return {
-    metadataBase: new URL(baseUrl),
+    metadataBase: getSiteUrlObject(),
     title: {
       default: title,
       template: `%s | ${settings.siteName}`,
     },
     description,
     applicationName: settings.siteName,
-    keywords: ["phim cổ trang", "tiên hiệp", "kiếm hiệp", "cung đấu", "phim Trung Hoại", "vietsub"],
+    keywords: ["phim cổ trang", "tiên hiệp", "kiếm hiệp", "cung đấu", "phim Trung Quốc", "vietsub"],
     openGraph: {
       type: "website",
       locale: "vi_VN",
