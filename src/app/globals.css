@@ -1,0 +1,440 @@
+@import "tailwindcss";
+
+/* Tailwind v4 KHÔNG tự đọc file cấu hình JS — phải khai báo tường minh bằng
+   directive `@config`. Thiếu dòng này khiến toàn bộ màu tùy chỉnh
+   (ink-*, gold-*, parchment-*, jade-*, rouge-*), shadow-lift và animate-*
+   không được sinh ra, khiến toàn bộ giao diện mất style và chỉ còn lại
+   text thuần.
+
+   File dùng đuôi .mts (không phải .ts) để Node 22 nạp bằng ESM ngay mà
+   không phải thử CommonJS rồi parse lại — tránh cảnh báo
+   MODULE_TYPELESS_PACKAGE_JSON và chi phí parse thừa mỗi lần build. */
+@config "../../tailwind.config.mts";
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+}
+
+/* ---------------------------------------------------------------------------
+   Design tokens
+   Ink-blue base, champagne gold accent, restrained jade and rouge.
+--------------------------------------------------------------------------- */
+:root {
+  --bg-obsidian: #0b0c10;
+  --bg-surface: #141720;
+  --accent-cinnabar: #c83e37;
+  --accent-cinnabar-hover: #e04f47;
+  --accent-gold: #d4af37;
+  --border-gold-subtle: rgba(212, 175, 55, 0.18);
+  --text-primary: #f3f4f6;
+  --text-muted: #9ca3af;
+
+  --background: #0b0c10;
+  /* Chữ chính: sáng hơn trước (#e8e2d5 -> #f3f4f6) để tách khỏi nền tốt hơn. */
+  --foreground: #f3f4f6;
+  --surface: #141720;
+  --surface-raised: #191d28;
+  --surface-sunken: #0b0c10;
+  --border: #1e2b38;
+  --border-strong: #2a3948;
+  /* Chữ phụ: trước là #93a3b5 nhưng gần như không được dùng; nay là token
+     chính thức cho metadata/ghi chú thay cho ink-500/600 (quá tối). */
+  --muted: #a9b8ca;
+  --accent: #d4af37;
+  --accent-soft: #f3e5ab;
+  --jade: #43a186;
+  --rouge: #c83e37;
+  --ring: #d4af37;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif), Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: rgba(217, 174, 73, 0.28);
+    color: #fdf8ec;
+  }
+
+  /* Scrollbars kept subtle so the dark canvas stays calm. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--surface-sunken);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #223041;
+    border-radius: 999px;
+    border: 2px solid var(--surface-sunken);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2f4155;
+  }
+}
+
+@layer components {
+  /* Fine paper grain used on top of the ink background. */
+  .bg-ink-texture {
+    background-color: var(--background);
+    background-image:
+      radial-gradient(ellipse 80% 55% at 50% -8%, rgba(217, 174, 73, 0.09), transparent 62%),
+      radial-gradient(ellipse 60% 45% at 88% 8%, rgba(67, 161, 134, 0.07), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 8% 22%, rgba(184, 69, 63, 0.06), transparent 62%);
+  }
+
+  .cloud-motif {
+    background-image:
+      radial-gradient(ellipse 30% 9% at 18% 22%, rgba(240, 232, 214, 0.06), transparent 70%),
+      radial-gradient(ellipse 26% 8% at 46% 30%, rgba(240, 232, 214, 0.05), transparent 70%),
+      radial-gradient(ellipse 24% 7% at 76% 20%, rgba(240, 232, 214, 0.045), transparent 70%);
+  }
+
+  .hairline {
+    border-width: 1px;
+    border-color: var(--border);
+  }
+
+  .panel {
+    background-color: var(--surface);
+    background-image: linear-gradient(
+      180deg,
+      rgba(212, 175, 55, 0.03) 0%,
+      rgba(20, 23, 32, 0) 100%
+    );
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.035);
+  }
+
+  /* Khung cổ phong với hoa văn góc vàng kim mảnh khi hover hoặc hiển thị nổi bật */
+  .oriental-frame {
+    position: relative;
+  }
+  .oriental-frame::before,
+  .oriental-frame::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+    transition:
+      opacity 0.35s ease,
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.35s ease;
+    opacity: 0.45;
+    z-index: 20;
+  }
+  .oriental-frame::before {
+    top: 6px;
+    left: 6px;
+    border-top: 1.5px solid rgba(212, 175, 55, 0.65);
+    border-left: 1.5px solid rgba(212, 175, 55, 0.65);
+  }
+  .oriental-frame::after {
+    bottom: 6px;
+    right: 6px;
+    border-bottom: 1.5px solid rgba(212, 175, 55, 0.65);
+    border-right: 1.5px solid rgba(212, 175, 55, 0.65);
+  }
+  .oriental-frame:hover::before,
+  .group:hover .oriental-frame::before {
+    opacity: 1;
+    transform: translate3d(-2px, -2px, 0);
+    border-color: rgba(243, 229, 171, 0.95);
+  }
+  .oriental-frame:hover::after,
+  .group:hover .oriental-frame::after {
+    opacity: 1;
+    transform: translate3d(2px, 2px, 0);
+    border-color: rgba(243, 229, 171, 0.95);
+  }
+
+  /* Hiệu ứng ánh kim quét ngang khi hover lên nút hoặc thẻ phim */
+  .shine-effect {
+    position: relative;
+    overflow: hidden;
+  }
+  .shine-effect::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translate3d(-120%, 0, 0) skewX(-18deg);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(243, 229, 171, 0.16) 50%,
+      transparent 100%
+    );
+    transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+  }
+  .shine-effect:hover::after,
+  .group:hover .shine-effect::after {
+    transform: translate3d(120%, 0, 0) skewX(-18deg);
+  }
+
+  /* Card điện ảnh nâng khối mượt mà (GPU-only translate3d) */
+  .card-cinematic {
+    will-change: transform;
+    transition:
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.3s ease,
+      box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 0.3s ease;
+  }
+  .card-cinematic:hover {
+    transform: translate3d(0, -6px, 0);
+    border-color: rgba(212, 175, 55, 0.48);
+    box-shadow:
+      0 16px 36px -12px rgba(0, 0, 0, 0.85),
+      0 0 26px -6px rgba(212, 175, 55, 0.25);
+  }
+
+  /* Con dấu chu sa / kim ấn cổ trang */
+  .seal-stamp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(200, 62, 55, 0.6);
+    background: linear-gradient(135deg, rgba(200, 62, 55, 0.25), rgba(140, 47, 43, 0.42));
+    color: #f0c4c3;
+    box-shadow:
+      inset 0 0 0 1px rgba(240, 196, 195, 0.14),
+      0 2px 10px -2px rgba(200, 62, 55, 0.38);
+  }
+
+  /* Nút CTA Đỏ Chu Sa (Cinnabar) kết hợp viền vàng kim */
+  .btn-cinnabar {
+    background: linear-gradient(135deg, #d8473f 0%, #c83e37 55%, #a52e28 100%);
+    color: #fdf8ec;
+    border: 1px solid rgba(243, 229, 171, 0.35);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 6px 22px -4px rgba(200, 62, 55, 0.55);
+  }
+  .btn-cinnabar:hover {
+    background: linear-gradient(135deg, #e5564e 0%, #e04f47 55%, #b83630 100%);
+    border-color: rgba(243, 229, 171, 0.6);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 8px 28px -3px rgba(224, 79, 71, 0.7);
+  }
+
+  /* Hiệu ứng Ken Burns zoom nhẹ cho Hero Banner */
+  @keyframes ken-burns {
+    0% {
+      transform: scale3d(1, 1, 1);
+    }
+    100% {
+      transform: scale3d(1.06, 1.06, 1);
+    }
+  }
+  .animate-ken-burns {
+    animation: ken-burns 22s ease-out infinite alternate;
+    will-change: transform;
+  }
+
+  /* Sóng lan tỏa từ nút Play trên Movie Card */
+  @keyframes play-ripple {
+    0% {
+      transform: scale3d(1, 1, 1);
+      opacity: 0.65;
+    }
+    100% {
+      transform: scale3d(1.65, 1.65, 1);
+      opacity: 0;
+    }
+  }
+  .play-ripple::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 9999px;
+    border: 1.5px solid rgba(212, 175, 55, 0.75);
+    animation: play-ripple 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    pointer-events: none;
+  }
+
+  /* Slide Trôi Ngang Liên Tục Như Dòng Lụa (Infinite Silk Marquee) */
+  @keyframes silk-marquee {
+    0% {
+      transform: translate3d(0, 0, 0);
+    }
+    100% {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  .silk-marquee-mask {
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      #000 6%,
+      #000 94%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      #000 6%,
+      #000 94%,
+      transparent 100%
+    );
+  }
+
+  .silk-marquee-track {
+    display: flex;
+    width: max-content;
+    animation: silk-marquee 42s linear infinite;
+    will-change: transform;
+  }
+
+  .silk-marquee-track:hover,
+  .silk-marquee-track:focus-within {
+    animation-play-state: paused;
+  }
+
+  .silk-marquee-card {
+    transition:
+      transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.32s ease,
+      border-color 0.32s ease,
+      box-shadow 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform, opacity;
+  }
+
+  .silk-marquee-track:hover .silk-marquee-card {
+    opacity: 0.5;
+  }
+
+  .silk-marquee-track:hover .silk-marquee-card:hover,
+  .silk-marquee-track .silk-marquee-card:focus-within {
+    opacity: 1;
+    transform: translate3d(0, -6px, 0) scale(1.08);
+    border-color: #d4af37;
+    box-shadow:
+      0 20px 44px -12px rgba(0, 0, 0, 0.92),
+      0 0 28px -2px rgba(212, 175, 55, 0.55);
+    z-index: 30;
+  }
+
+  .gold-rule {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(217, 174, 73, 0.5),
+      rgba(217, 174, 73, 0.12),
+      transparent
+    );
+  }
+
+  .link-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    transition: background-size 0.25s ease;
+  }
+  .link-underline:hover {
+    background-size: 100% 1px;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Bóng chữ cho nội dung nằm trên ảnh nền.
+     Khi lớp phủ được giảm để ảnh hiện rõ hơn, chữ vẫn cần tương phản đủ trên
+     vùng ảnh sáng. Bóng mờ, tối, lan rộng tạo "quầng" tối cục bộ mà không làm
+     bẩn ảnh như một lớp phủ toàn phần. */
+  .text-shadow-hero {
+    text-shadow:
+      0 1px 2px rgba(7, 11, 16, 0.85),
+      0 2px 12px rgba(7, 11, 16, 0.7),
+      0 0 32px rgba(7, 11, 16, 0.45);
+  }
+
+  .stagger-1 {
+    animation-delay: 40ms;
+  }
+  .stagger-2 {
+    animation-delay: 90ms;
+  }
+  .stagger-3 {
+    animation-delay: 140ms;
+  }
+  .stagger-4 {
+    animation-delay: 190ms;
+  }
+  .stagger-5 {
+    animation-delay: 240ms;
+  }
+  .stagger-6 {
+    animation-delay: 290ms;
+  }
+}
+
+/* Giảm độ nặng của backdrop-filter trên thiết bị di động để giữ cuộn 60fps */
+@media (max-width: 767px) {
+  .backdrop-blur-xl,
+  .backdrop-blur-md {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+}
+
+/* Respect the user's motion preference across the whole app, except for the explicit Silk Marquee. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.silk-marquee-track):not(.silk-marquee-card),
+  *:not(.silk-marquee-track):not(.silk-marquee-card)::before,
+  *:not(.silk-marquee-track):not(.silk-marquee-card)::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
