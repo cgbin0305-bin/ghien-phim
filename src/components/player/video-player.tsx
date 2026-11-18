@@ -14,6 +14,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildEmbedUrl } from "@/lib/video/provider";
+import {
+  exitFullscreen,
+  getFullscreenElement,
+  onFullscreenChange,
+  requestFullscreen,
+} from "@/lib/fullscreen";
 import { reportBrokenEpisodeAction } from "@/app/actions/community";
 import type { VideoSource } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -139,7 +145,15 @@ export function VideoPlayer({
 
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [lightsOff, setLightsOff] = React.useState(false);
-  const [expanded, setExpanded] = React.useState(false);
+  /**
+   * Trạng thái toàn màn hình.
+   *
+   * KHÔNG bao giờ set thủ công khi bấm nút: state này luôn được suy ra từ
+   * `document.fullscreenElement`. Nhờ vậy, khi người dùng bấm `ESC` (hoặc
+   * trình duyệt tự thoát fullscreen), nút bấm cũng cập nhật đúng theo — trước
+   * đây state nội bộ và thực tế lệch nhau.
+   */
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [reloadKey, setReloadKey] = React.useState(0);
   const [iframeLoaded, setIframeLoaded] = React.useState(false);
   const [reportBanner, setReportBanner] = React.useState<{
@@ -182,20 +196,30 @@ export function VideoPlayer({
     const frame = frameRef.current;
     if (!frame) return;
 
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
+    // Quyết định vào/ra dựa trên trạng thái thực tế của trình duyệt, không
+    // dựa vào state — tránh lệch khi người dùng đã thoát fullscreen bằng ESC.
+    if (getFullscreenElement()) {
+      void exitFullscreen().catch(() => undefined);
       return;
     }
-    void frame.requestFullscreen?.();
+
+    void requestFullscreen(frame).catch(() => undefined);
   }, []);
 
+  /**
+   * Đồng bộ `isFullscreen` với trạng thái thực tế của trình duyệt.
+   *
+   * Nghe tất cả biến thể sự kiện (`fullscreenchange`, `webkitfullscreenchange`,
+   * `mozfullscreenchange`, `MSFullscreenChange`) để hoạt động trên cả Safari.
+   */
   React.useEffect(() => {
-    const onFullscreenChange = () => {
-      setExpanded(document.fullscreenElement === frameRef.current);
-    };
+    const sync = () => setIsFullscreen(getFullscreenElement() !== null);
 
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+    // Đồng bộ ngay khi mount (ví dụ người dùng F11 hoặc mở lại tab đang
+    // fullscreen) để không có khoảng thời gian giao diện bị lệch.
+    sync();
+
+    return onFullscreenChange(sync);
   }, []);
 
   // Thoát chế độ tắt đèn bằng Escape.
@@ -304,7 +328,7 @@ export function VideoPlayer({
         className={cn(
           "relative aspect-video w-full overflow-hidden rounded-xl border border-gold-500/30 bg-black shadow-[0_0_45px_-12px_rgba(212,175,55,0.28),0_20px_50px_-20px_rgba(0,0,0,0.9)]",
           lightsOff ? "z-[85] border-gold-400/55 shadow-[0_0_70px_-10px_rgba(212,175,55,0.4)]" : "z-0",
-          expanded && "mx-auto max-w-none",
+          isFullscreen && "mx-auto max-w-none",
         )}
       >
         {active && !iframeLoaded && (
@@ -401,16 +425,16 @@ export function VideoPlayer({
             variant="ghost"
             size="sm"
             onClick={toggleExpanded}
-            aria-pressed={expanded}
-            title={expanded ? "Thu nhỏ trình phát" : "Mở rộng trình phát"}
+            aria-pressed={isFullscreen}
+            title={isFullscreen ? "Thu nhỏ trình phát" : "Mở rộng trình phát"}
           >
-            {expanded ? (
+            {isFullscreen ? (
               <Minimize2 aria-hidden="true" />
             ) : (
               <Maximize2 aria-hidden="true" />
             )}
             <span className="sr-only sm:not-sr-only">
-              {expanded ? "Thu nhỏ" : "Mở rộng"}
+              {isFullscreen ? "Thu nhỏ" : "Mở rộng"}
             </span>
           </Button>
 

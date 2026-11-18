@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { VideoPlayer } from "@/components/player/video-player";
 import type { VideoSource } from "@/lib/types";
@@ -108,6 +108,54 @@ describe("VideoPlayer — nút Mở rộng", () => {
       "aria-pressed",
       "false",
     );
+  });
+
+  /**
+   * Hồi quy lỗi lệch trạng thái: trước đây state `expanded` được set thủ công
+   * khi bấm nút, nên khi người dùng bấm ESC để thoát fullscreen, nút vẫn hiện
+   * "Thu nhỏ" dù thực tế đã thoát. Nay state phải luôn bám theo trình duyệt.
+   */
+  it("đồng bộ nút khi người dùng bấm ESC để thoát fullscreen", async () => {
+    const user = userEvent.setup();
+    renderPlayer();
+
+    await user.click(screen.getByRole("button", { name: "Mở rộng" }));
+    expect(screen.getByRole("button", { name: "Thu nhỏ" })).toBeInTheDocument();
+
+    // ESC do trình duyệt xử lý: nó thoát fullscreen (phần tử fullscreen trở
+    // thành null) rồi bắn `fullscreenchange`.
+    void document.exitFullscreen();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Mở rộng" })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+    });
+    expect(screen.queryByRole("button", { name: "Thu nhỏ" })).not.toBeInTheDocument();
+  });
+
+  it("nghe cả biến thể sự kiện của Safari (webkitfullscreenchange)", async () => {
+    renderPlayer();
+
+    // Mô phỏng Safari: chỉ có `webkitFullscreenElement`, không có bản chuẩn.
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => undefined,
+    });
+    Object.defineProperty(document, "webkitFullscreenElement", {
+      configurable: true,
+      get: () => document.body,
+    });
+
+    document.dispatchEvent(new Event("webkitfullscreenchange"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Thu nhỏ" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+    });
   });
 });
 
