@@ -107,12 +107,6 @@ interface DbPostRow {
 const MOVIE_COLUMNS =
   "id, slug, title, original_title, synopsis, year, country, director, cast, poster_url, backdrop_url, trailer_url, status, release_status, total_episodes, subtitle_label, is_featured, sort_order, published_at, created_at, updated_at";
 
-const EPISODE_COLUMNS =
-  "id, movie_id, episode_number, title, slug, release_date, status, description, created_at, updated_at";
-
-const SCHEDULE_COLUMNS =
-  "id, movie_id, episode_id, episode_number, scheduled_at, status, note, created_at, updated_at";
-
 /** Không tải cột `content` (nội dung Markdown dài) khi hiển thị danh sách thẻ bài viết. */
 const POST_LIST_COLUMNS =
   "id, slug, title, excerpt, cover_image_url, type, status, week_start, published_at, created_at, updated_at";
