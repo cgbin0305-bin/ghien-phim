@@ -40,7 +40,10 @@ export default async function WatchPage({ params }: PageProps) {
   const { movieSlug, episodeSlug } = await params;
   const store = await getPublicStore();
 
-  const result = await store.getEpisodeBySlug(movieSlug, episodeSlug);
+  const [result, settings] = await Promise.all([
+    store.getEpisodeBySlug(movieSlug, episodeSlug),
+    store.getSettings(),
+  ]);
   if (!result) notFound();
 
   const { movie, episode, siblings } = result;
@@ -112,6 +115,7 @@ export default async function WatchPage({ params }: PageProps) {
             movieTitle={movie.title}
             episodeSlug={episode.slug}
             episodeTitle={episode.title}
+            donateConfig={settings.donateConfig}
           />
 
           <CultivationReactions

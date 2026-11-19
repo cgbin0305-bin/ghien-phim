@@ -91,6 +91,17 @@ export default async function HomePage() {
       <ContinueWatching movies={all.movies} />
 
       <div className="mx-auto max-w-[1400px] space-y-16 px-4 py-12 sm:px-6 sm:py-16">
+        <section aria-labelledby="lich-chieu-hom-nay" className="space-y-5">
+          <SectionHeading
+            id="lich-chieu-hom-nay"
+            title="Lịch chiếu hôm nay"
+            description="Lịch phát sóng trong tuần, theo múi giờ Asia/Ho_Chi_Minh."
+            href="/lich-chieu"
+            linkLabel="Xem lịch đầy đủ"
+          />
+          <ScheduleStrip events={week.events} />
+        </section>
+
         <InstantMovieCatalog movies={all.movies} genres={genres} />
 
         <BangPhongThan movies={all.movies} initialStats={communityStats} />
@@ -131,17 +142,6 @@ export default async function HomePage() {
             movies={cumDauMovies}
           />
         </div>
-
-        <section aria-labelledby="lich-chieu-hom-nay" className="space-y-5">
-          <SectionHeading
-            id="lich-chieu-hom-nay"
-            title="Lịch chiếu hôm nay"
-            description="Lịch phát sóng trong tuần, theo múi giờ Asia/Ho_Chi_Minh."
-            href="/lich-chieu"
-            linkLabel="Xem lịch đầy đủ"
-          />
-          <ScheduleStrip events={week.events} />
-        </section>
 
         <section aria-labelledby="bai-viet-moi" className="space-y-5">
           <SectionHeading

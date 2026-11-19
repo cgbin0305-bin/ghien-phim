@@ -273,6 +273,14 @@ export const settingsSchema = z.object({
   seoDescription: z.string().trim().max(320).optional().or(z.literal("")),
   ogImageUrl: optionalRemoteImageUrlSchema,
   featuredMovieId: z.string().optional().or(z.literal("")),
+  donateButtonText: z.string().trim().max(80).optional().or(z.literal("")),
+  donateTitle: z.string().trim().max(150).optional().or(z.literal("")),
+  donateMessage: z.string().trim().max(1000).optional().or(z.literal("")),
+  donateBankName: z.string().trim().max(120).optional().or(z.literal("")),
+  donateAccountNumber: z.string().trim().max(80).optional().or(z.literal("")),
+  donateAccountHolder: z.string().trim().max(150).optional().or(z.literal("")),
+  donateTransferContent: z.string().trim().max(150).optional().or(z.literal("")),
+  donateQrImageUrl: z.string().trim().max(1000).optional().or(z.literal("")),
 });
 
 export type SettingsFormValues = z.input<typeof settingsSchema>;

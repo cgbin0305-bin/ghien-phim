@@ -108,6 +108,8 @@ export interface Post {
   movies: Pick<Movie, "id" | "slug" | "title" | "posterUrl">[];
 }
 
+import type { DonateConfig } from "@/config/donateConfig";
+
 export interface SiteSettings {
   siteName: string;
   siteDescription: string | null;
@@ -118,6 +120,7 @@ export interface SiteSettings {
   seoDescription: string | null;
   ogImageUrl: string | null;
   featuredMovieId: string | null;
+  donateConfig?: DonateConfig;
   updatedAt: string;
 }
 

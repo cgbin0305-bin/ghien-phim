@@ -4,6 +4,8 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Eye, QrCode, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -16,6 +18,13 @@ import {
 import { SubmitButton } from "@/components/admin/submit-button";
 import { LogoPreview } from "@/components/admin/logo-preview";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { DonateModal } from "@/components/player/donate-modal";
+import {
+  COMMON_VIETQR_BANKS,
+  DONATE_CONFIG,
+  buildVietQrImageUrl,
+  normalizeDonateConfig,
+} from "@/config/donateConfig";
 import { useToast } from "@/components/ui/toast";
 import { updateSettingsAction } from "@/app/admin/(panel)/cai-dat/actions";
 import type { MovieWithStats, SiteSettings } from "@/lib/types";
@@ -30,6 +39,14 @@ const formSchema = z.object({
   seoDescription: z.string().trim(),
   ogImageUrl: z.string().trim(),
   featuredMovieId: z.string().trim(),
+  donateButtonText: z.string().trim(),
+  donateTitle: z.string().trim(),
+  donateMessage: z.string().trim(),
+  donateBankName: z.string().trim(),
+  donateAccountNumber: z.string().trim(),
+  donateAccountHolder: z.string().trim(),
+  donateTransferContent: z.string().trim(),
+  donateQrImageUrl: z.string().trim(),
 });
 
 type SettingsFormValues = z.infer<typeof formSchema>;
@@ -45,6 +62,22 @@ export function SettingsForm({
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [serverSuccess, setServerSuccess] = React.useState<string | null>(null);
   const [featuredMovieId, setFeaturedMovieId] = React.useState(settings.featuredMovieId ?? "");
+  const [previewDonateOpen, setPreviewDonateOpen] = React.useState(false);
+
+  const initialDonate = React.useMemo(
+    () => normalizeDonateConfig(settings.donateConfig ?? DONATE_CONFIG),
+    [settings.donateConfig],
+  );
+
+  // Đoán mã ngân hàng VietQR từ tên ngân hàng hiện tại
+  const [selectedBankCode, setSelectedBankCode] = React.useState<string>(() => {
+    const matched = COMMON_VIETQR_BANKS.find(
+      (b) =>
+        b.name.toLowerCase() === initialDonate.bankName.toLowerCase() ||
+        b.code.toLowerCase() === initialDonate.bankName.toLowerCase(),
+    );
+    return matched?.code ?? "MB";
+  });
 
   const {
     register,
@@ -65,8 +98,43 @@ export function SettingsForm({
       seoDescription: settings.seoDescription ?? "",
       ogImageUrl: settings.ogImageUrl ?? "",
       featuredMovieId: settings.featuredMovieId ?? "",
+      donateButtonText: initialDonate.buttonText,
+      donateTitle: initialDonate.title,
+      donateMessage: initialDonate.message,
+      donateBankName: initialDonate.bankName,
+      donateAccountNumber: initialDonate.accountNumber,
+      donateAccountHolder: initialDonate.accountHolder,
+      donateTransferContent: initialDonate.transferContent,
+      donateQrImageUrl: initialDonate.qrImageUrl,
     },
   });
+
+  const liveDonateConfig = normalizeDonateConfig({
+    buttonText: watch("donateButtonText"),
+    title: watch("donateTitle"),
+    message: watch("donateMessage"),
+    bankName: watch("donateBankName"),
+    accountNumber: watch("donateAccountNumber"),
+    accountHolder: watch("donateAccountHolder"),
+    transferContent: watch("donateTransferContent"),
+    qrImageUrl: watch("donateQrImageUrl"),
+  });
+
+  const handleGenerateVietQr = () => {
+    const accountNumber = (watch("donateAccountNumber") ?? "").trim();
+    if (!accountNumber) {
+      toast("Vui lòng nhập Số tài khoản trước khi tạo mã VietQR.", "error");
+      return;
+    }
+    const url = buildVietQrImageUrl({
+      bankCode: selectedBankCode,
+      accountNumber,
+      accountHolder: watch("donateAccountHolder"),
+      transferContent: watch("donateTransferContent"),
+    });
+    setValue("donateQrImageUrl", url, { shouldDirty: true, shouldValidate: true });
+    toast("Đã tạo link mã QR VietQR tự động theo thông tin tài khoản!", "success");
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
@@ -115,6 +183,164 @@ export function SettingsForm({
           {serverSuccess}
         </p>
       )}
+
+      {/* Khu vực cấu hình Donate / Chuyển khoản Thưởng Linh Thạch */}
+      <section className="panel oriental-frame space-y-5 border-gold-500/40 p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-ink-700/80 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 text-gold-300" aria-hidden="true" />
+              <h2 className="font-serif text-lg font-semibold text-gold-200">
+                Thông tin Chuyển khoản / Ủng Hộ (Thưởng Linh Thạch)
+              </h2>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-parchment-300/85">
+              Cấu hình nút &ldquo;Thưởng Linh Thạch&rdquo; và Popup mã QR chuyển khoản hiển thị bên dưới khung trình phát video.
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setPreviewDonateOpen(true)}
+          >
+            <Eye className="size-3.5" aria-hidden="true" />
+            Xem thử Popup Donate
+          </Button>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="donateButtonText">Tên nút bấm hiển thị</Label>
+            <Input
+              id="donateButtonText"
+              placeholder="Thưởng Linh Thạch"
+              {...register("donateButtonText")}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="donateTitle">Tiêu đề Popup</Label>
+            <Input
+              id="donateTitle"
+              placeholder="Cảm Tạ Đạo Hữu Đã Ủng Hộ"
+              {...register("donateTitle")}
+            />
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="donateMessage">Lời nhắn cảm ơn</Label>
+            <textarea
+              id="donateMessage"
+              rows={2}
+              placeholder="Mỗi viên Linh Thạch của đạo hữu là nguồn linh khí quý giá..."
+              className="w-full rounded-md border border-ink-600 bg-ink-850 px-3 py-2 text-sm text-parchment-100 focus-visible:border-gold-500/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-500/50"
+              {...register("donateMessage")}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="vietQrBankSelect">Chọn nhanh ngân hàng (VietQR)</Label>
+            <Select
+              value={selectedBankCode}
+              onValueChange={(code) => {
+                setSelectedBankCode(code);
+                const found = COMMON_VIETQR_BANKS.find((b) => b.code === code);
+                if (found) {
+                  setValue("donateBankName", found.name, { shouldDirty: true });
+                }
+              }}
+            >
+              <SelectTrigger id="vietQrBankSelect">
+                <SelectValue placeholder="Chọn ngân hàng" />
+              </SelectTrigger>
+              <SelectContent>
+                {COMMON_VIETQR_BANKS.map((bank) => (
+                  <SelectItem key={bank.code} value={bank.code}>
+                    {bank.name} ({bank.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="donateBankName">Tên ngân hàng hiển thị</Label>
+            <Input
+              id="donateBankName"
+              placeholder="VD: MB Bank, Vietcombank..."
+              {...register("donateBankName")}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="donateAccountNumber">Số tài khoản</Label>
+            <Input
+              id="donateAccountNumber"
+              placeholder="0123456789"
+              {...register("donateAccountNumber")}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="donateAccountHolder">Tên chủ tài khoản (in hoa không dấu)</Label>
+            <Input
+              id="donateAccountHolder"
+              placeholder="NGUYEN VAN A"
+              {...register("donateAccountHolder")}
+            />
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="donateTransferContent">Nội dung chuyển khoản gợi ý</Label>
+            <Input
+              id="donateTransferContent"
+              placeholder="UNG HO GHIEN PHIM"
+              {...register("donateTransferContent")}
+            />
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label htmlFor="donateQrImageUrl">URL ảnh mã QR (VietQR hoặc ảnh tải lên)</Label>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleGenerateVietQr}
+              >
+                <QrCode className="size-3.5 text-gold-300" aria-hidden="true" />
+                Tạo mã VietQR tự động từ STK trên
+              </Button>
+            </div>
+            <Input
+              id="donateQrImageUrl"
+              placeholder="https://img.vietqr.io/image/MB-0123456789-compact2.png?..."
+              {...register("donateQrImageUrl")}
+            />
+
+            <ImageUploadField
+              id="donateQrUpload"
+              label="Hoặc tải ảnh mã QR từ máy tính lên"
+              hint="Bạn có thể tải trực tiếp ảnh QR ngân hàng/ví điện tử từ máy tính lên Supabase Storage."
+              value={watch("donateQrImageUrl") ?? ""}
+              onUploaded={(url) =>
+                setValue("donateQrImageUrl", url, { shouldDirty: true })
+              }
+              aspect="square"
+              showInput={false}
+              className="mt-2"
+            />
+          </div>
+        </div>
+
+        <DonateModal
+          open={previewDonateOpen}
+          onClose={() => setPreviewDonateOpen(false)}
+          config={liveDonateConfig}
+        />
+      </section>
 
       <section className="panel space-y-4 p-5 sm:p-6">
         <h2 className="font-serif text-base font-semibold text-parchment-100">Thông tin website</h2>

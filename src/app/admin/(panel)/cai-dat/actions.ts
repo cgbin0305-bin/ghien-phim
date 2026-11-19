@@ -5,14 +5,12 @@ import { requireAdmin } from "@/lib/auth";
 import { getStore } from "@/lib/data";
 import { invalidatePublicCache } from "@/lib/cache";
 import { isDemoMode } from "@/lib/env";
+import { normalizeDonateConfig } from "@/config/donateConfig";
 import { fieldErrors, settingsSchema } from "@/lib/validations/schemas";
 import type { ActionState } from "@/lib/validations/action-state";
 
 /**
- * Updates the site settings.
- *
- * There is deliberately no UI for editing environment variables or secrets -
- * only public, editorial settings live here.
+ * Updates the site settings (including Donate / Thưởng Linh Thạch configuration).
  */
 export async function updateSettingsAction(
   _prev: ActionState,
@@ -36,6 +34,14 @@ export async function updateSettingsAction(
     seoDescription: formData.get("seoDescription") ?? "",
     ogImageUrl: formData.get("ogImageUrl") ?? "",
     featuredMovieId: formData.get("featuredMovieId") ?? "",
+    donateButtonText: formData.get("donateButtonText") ?? "",
+    donateTitle: formData.get("donateTitle") ?? "",
+    donateMessage: formData.get("donateMessage") ?? "",
+    donateBankName: formData.get("donateBankName") ?? "",
+    donateAccountNumber: formData.get("donateAccountNumber") ?? "",
+    donateAccountHolder: formData.get("donateAccountHolder") ?? "",
+    donateTransferContent: formData.get("donateTransferContent") ?? "",
+    donateQrImageUrl: formData.get("donateQrImageUrl") ?? "",
   });
 
   if (!parsed.success) {
@@ -44,6 +50,17 @@ export async function updateSettingsAction(
 
   const store = await getStore();
   const data = parsed.data;
+
+  const donateConfig = normalizeDonateConfig({
+    buttonText: data.donateButtonText,
+    title: data.donateTitle,
+    message: data.donateMessage,
+    bankName: data.donateBankName,
+    accountNumber: data.donateAccountNumber,
+    accountHolder: data.donateAccountHolder,
+    transferContent: data.donateTransferContent,
+    qrImageUrl: data.donateQrImageUrl,
+  });
 
   try {
     await store.updateSettings({
@@ -56,6 +73,7 @@ export async function updateSettingsAction(
       seoDescription: data.seoDescription || null,
       ogImageUrl: data.ogImageUrl || null,
       featuredMovieId: data.featuredMovieId || null,
+      donateConfig,
     });
   } catch (error) {
     return {
@@ -65,8 +83,10 @@ export async function updateSettingsAction(
 
   invalidatePublicCache();
 
+  revalidatePath("/", "layout");
   revalidatePath("/");
   revalidatePath("/admin/cai-dat");
+  revalidatePath("/xem/[movieSlug]/[episodeSlug]", "page");
 
-  return { success: "Đã lưu cài đặt." };
+  return { success: "Đã lưu cài đặt website và thông tin chuyển khoản thành công." };
 }

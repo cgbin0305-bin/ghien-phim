@@ -26,6 +26,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { slugify } from "@/lib/slug";
 import { sortEpisodes } from "@/lib/episode-sort";
+import {
+  DONATE_CONFIG,
+  parseContactNoteAndDonate,
+  serializeContactNoteWithDonate,
+} from "@/config/donateConfig";
 import { addDays, getWeekUtcRange } from "@/lib/date";
 import { isUuid } from "@/lib/data/uuid";
 
@@ -224,6 +229,7 @@ const EMPTY_SETTINGS: SiteSettings = {
   seoDescription: null,
   ogImageUrl: null,
   featuredMovieId: null,
+  donateConfig: { ...DONATE_CONFIG },
   updatedAt: new Date().toISOString(),
 };
 
@@ -500,16 +506,20 @@ export function createSupabaseStore(client: Db): DataStore {
         }
         if (!data) return EMPTY_SETTINGS;
         const row = data as Record<string, unknown>;
+        const { contactNote, donateConfig } = parseContactNoteAndDonate(
+          (row.contact_note as string) ?? null,
+        );
         return {
           siteName: (row.site_name as string) ?? EMPTY_SETTINGS.siteName,
           siteDescription: (row.site_description as string) ?? null,
           logoUrl: (row.logo_url as string) ?? null,
           contactEmail: (row.contact_email as string) ?? null,
-          contactNote: (row.contact_note as string) ?? null,
+          contactNote,
           seoTitle: (row.seo_title as string) ?? null,
           seoDescription: (row.seo_description as string) ?? null,
           ogImageUrl: (row.og_image_url as string) ?? null,
           featuredMovieId: (row.featured_movie_id as string) ?? null,
+          donateConfig,
           updatedAt: (row.updated_at as string) ?? EMPTY_SETTINGS.updatedAt,
         };
       } catch (err) {
@@ -524,7 +534,14 @@ export function createSupabaseStore(client: Db): DataStore {
       if (patch.siteDescription !== undefined) payload.site_description = patch.siteDescription;
       if (patch.logoUrl !== undefined) payload.logo_url = patch.logoUrl;
       if (patch.contactEmail !== undefined) payload.contact_email = patch.contactEmail;
-      if (patch.contactNote !== undefined) payload.contact_note = patch.contactNote;
+      if (patch.contactNote !== undefined || patch.donateConfig !== undefined) {
+        const current = await this.getSettings();
+        const nextNote =
+          patch.contactNote !== undefined ? patch.contactNote : current.contactNote;
+        const nextDonate =
+          patch.donateConfig !== undefined ? patch.donateConfig : current.donateConfig;
+        payload.contact_note = serializeContactNoteWithDonate(nextNote, nextDonate);
+      }
       if (patch.seoTitle !== undefined) payload.seo_title = patch.seoTitle;
       if (patch.seoDescription !== undefined) payload.seo_description = patch.seoDescription;
       if (patch.ogImageUrl !== undefined) payload.og_image_url = patch.ogImageUrl;

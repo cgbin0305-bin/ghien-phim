@@ -6,6 +6,13 @@ import { AmbientParticles } from "@/components/effects/ambient-particles";
 import { StaggeredMovieGrid } from "@/components/effects/staggered-movie-grid";
 import { SealStampButton } from "@/components/ui/seal-stamp-button";
 import { ScrollUnfurlTrigger } from "@/components/movie/scroll-unfurl-modal";
+import { DonateTriggerButton } from "@/components/player/donate-modal";
+import {
+  DONATE_CONFIG,
+  buildVietQrImageUrl,
+  parseContactNoteAndDonate,
+  serializeContactNoteWithDonate,
+} from "@/config/donateConfig";
 import { MovieCard } from "@/components/movie/movie-card";
 import { sortEpisodes } from "@/lib/episode-sort";
 import type { MovieWithStats, VideoSource } from "@/lib/types";
@@ -184,5 +191,64 @@ describe("7. Sắp xếp tập phim tự nhiên (sortEpisodes 1 -> 23)", () => {
       "Tập 22",
       "Tập 23",
     ]);
+  });
+});
+
+describe("8. Tính năng Donate / Ủng Hộ (Thưởng Linh Thạch)", () => {
+  it("đọc 100% dữ liệu hiển thị từ DONATE_CONFIG và hỗ trợ sao chép nhanh STK / Nội dung CK", async () => {
+    render(<DonateTriggerButton />);
+
+    const triggerBtn = screen.getByRole("button", {
+      name: new RegExp(DONATE_CONFIG.buttonText, "i"),
+    });
+    expect(triggerBtn).toBeInTheDocument();
+
+    fireEvent.click(triggerBtn);
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText(DONATE_CONFIG.title)).toBeInTheDocument();
+    expect(screen.getByText(DONATE_CONFIG.message)).toBeInTheDocument();
+    expect(screen.getByText(DONATE_CONFIG.bankName)).toBeInTheDocument();
+    expect(screen.getByText(DONATE_CONFIG.accountHolder)).toBeInTheDocument();
+    expect(screen.getByText(DONATE_CONFIG.accountNumber)).toBeInTheDocument();
+    expect(screen.getByText(DONATE_CONFIG.transferContent)).toBeInTheDocument();
+
+    const copyAccBtn = screen.getByRole("button", { name: "Sao chép số tài khoản" });
+    fireEvent.click(copyAccBtn);
+
+    expect(await screen.findByText("Đã sao chép!")).toBeInTheDocument();
+  });
+
+  it("lưu và đọc cấu hình Donate từ Admin mà không lộ marker JSON trong ghi chú liên hệ", () => {
+    const customConfig = {
+      ...DONATE_CONFIG,
+      buttonText: "Ủng Hộ Trà Đạo",
+      bankName: "Vietcombank",
+      accountNumber: "999988887777",
+      accountHolder: "TRAN DAO HUU",
+      transferContent: "UNG HO GHIEN PHIM VIP",
+      qrImageUrl: buildVietQrImageUrl({
+        bankCode: "VCB",
+        accountNumber: "999988887777",
+        accountHolder: "TRAN DAO HUU",
+        transferContent: "UNG HO GHIEN PHIM VIP",
+      }),
+    };
+
+    const raw = serializeContactNoteWithDonate("Liên hệ quản trị qua email.", customConfig);
+    const parsed = parseContactNoteAndDonate(raw);
+
+    expect(parsed.contactNote).toBe("Liên hệ quản trị qua email.");
+    expect(parsed.donateConfig.buttonText).toBe("Ủng Hộ Trà Đạo");
+    expect(parsed.donateConfig.bankName).toBe("Vietcombank");
+    expect(parsed.donateConfig.accountNumber).toBe("999988887777");
+    expect(parsed.donateConfig.accountHolder).toBe("TRAN DAO HUU");
+    expect(parsed.donateConfig.transferContent).toBe("UNG HO GHIEN PHIM VIP");
+
+    render(<DonateTriggerButton config={parsed.donateConfig} />);
+    const btn = screen.getByRole("button", { name: "Ủng Hộ Trà Đạo" });
+    fireEvent.click(btn);
+    expect(screen.getByText("Vietcombank")).toBeInTheDocument();
+    expect(screen.getByText("999988887777")).toBeInTheDocument();
   });
 });

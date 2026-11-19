@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CinemaPlayerWrapper } from "@/components/player/cinema-player-wrapper";
+import { DonateTriggerButton } from "@/components/player/donate-modal";
 import { buildEmbedUrl } from "@/lib/video/provider";
 import {
   exitFullscreen,
@@ -21,6 +22,7 @@ import {
   requestFullscreen,
 } from "@/lib/fullscreen";
 import { reportBrokenEpisodeAction } from "@/app/actions/community";
+import type { DonateConfig } from "@/config/donateConfig";
 import type { VideoSource } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +38,8 @@ interface VideoPlayerProps {
   movieTitle?: string;
   episodeSlug?: string;
   episodeTitle?: string;
+  /** Cấu hình Donate / Thưởng Linh Thạch đã được chỉnh sửa từ Admin. */
+  donateConfig?: DonateConfig;
 }
 
 interface EmbedState {
@@ -91,6 +95,7 @@ export function VideoPlayer({
   movieTitle,
   episodeSlug,
   episodeTitle,
+  donateConfig,
 }: VideoPlayerProps) {
   // Hỗ trợ tách linh hoạt nhiều link trong cùng 1 trường sourceUrl (ngăn cách bởi dấu phẩy `,` hoặc xuống dòng `\n`)
   const valid = React.useMemo<NormalizedServerEntry[]>(() => {
@@ -470,6 +475,8 @@ export function VideoPlayer({
               {lightsOff ? "Bật đèn · Rạp Chiếu" : "Tắt đèn · Rạp Chiếu"}
             </span>
           </Button>
+
+          <DonateTriggerButton config={donateConfig} />
         </div>
       </div>
 

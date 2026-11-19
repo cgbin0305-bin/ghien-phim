@@ -1,6 +1,7 @@
 import "server-only";
 import type { DataStore } from "@/lib/data/types";
 import { createDemoStore } from "@/lib/data/demo-store";
+import { ttlCacheClear } from "@/lib/data/ttl-cache";
 import { hasSupabaseConfig } from "@/lib/env";
 
 /**
@@ -10,19 +11,12 @@ import { hasSupabaseConfig } from "@/lib/env";
  */
 let demoStore: DataStore | null = null;
 
-/**
- * Store công khai có cache TTL trong bộ nhớ.
- *
- * Dùng cho các trang chỉ đọc nội dung đã xuất bản. Cache giúp độ trễ ổn định
- * kể cả khi Next.js Data Cache không áp dụng (các route động).
- *
- * Lưu trên `globalThis` để mọi bundle trong cùng tiến trình server dùng chung
- * một instance - nếu không, việc xoá cache khi quản trị viên sửa nội dung sẽ
- * không có tác dụng với các bundle khác.
- */
+// Xoá instance cũ trên globalThis (nếu có từ phiên HMR trước) để tránh giữ closure cũ
 const globalStore = globalThis as typeof globalThis & {
   __gheienPhimPublicStore?: DataStore;
 };
+delete globalStore.__gheienPhimPublicStore;
+ttlCacheClear();
 
 export async function getStore(): Promise<DataStore> {
   if (!hasSupabaseConfig) {
@@ -58,11 +52,7 @@ export async function getPublicStore(): Promise<DataStore> {
     return demoStore;
   }
 
-  if (!globalStore.__gheienPhimPublicStore) {
-    const { getPublicSupabaseStore } = await import("@/lib/data/supabase-store");
-    const { createCachedPublicStore } = await import("@/lib/data/cached-public-store");
-    globalStore.__gheienPhimPublicStore = createCachedPublicStore(getPublicSupabaseStore());
-  }
-
-  return globalStore.__gheienPhimPublicStore;
+  const { getPublicSupabaseStore } = await import("@/lib/data/supabase-store");
+  const { createCachedPublicStore } = await import("@/lib/data/cached-public-store");
+  return createCachedPublicStore(getPublicSupabaseStore());
 }
