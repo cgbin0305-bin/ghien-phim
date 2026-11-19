@@ -17,8 +17,7 @@ import { getTodayKey, getWeekStart } from "@/lib/date";
 import type { Genre, MovieWithStats } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 30;
 
 const GENRE_SEALS: Record<string, string> = {
   "co-trang": "古",

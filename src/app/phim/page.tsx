@@ -16,8 +16,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/phim" },
 };
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 30;
 
 interface SearchParams {
   q?: string;
