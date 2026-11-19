@@ -3,9 +3,6 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { siteConfig } from "@/lib/env";
 
-/** Thời gian cache cho dữ liệu công khai (giây). */
-const PUBLIC_REVALIDATE = 300;
-
 /**
  * Tag dùng để xoá cache khi quản trị viên sửa nội dung.
  * Mỗi bảng có một tag riêng để việc xoá cache chính xác, không xoá toàn bộ.
@@ -18,8 +15,6 @@ export const CACHE_TAGS = {
   settings: "settings",
   genres: "genres",
 } as const;
-
-const ALL_CACHE_TAGS = Object.values(CACHE_TAGS);
 
 /** `next` là tuỳ chọn riêng của Next.js, không nằm trong RequestInit chuẩn. */
 type NextFetchInit = RequestInit & { next?: { revalidate?: number; tags?: string[] } };
@@ -55,10 +50,7 @@ export function createPublicClient() {
     return fetch(input, {
       ...init,
       headers,
-      next: {
-        revalidate: PUBLIC_REVALIDATE,
-        tags: ALL_CACHE_TAGS,
-      },
+      cache: "no-store",
     });
   }) as typeof fetch;
 

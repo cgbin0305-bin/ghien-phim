@@ -63,13 +63,13 @@ export const DEFAULT_TTL_SECONDS = 300;
  */
 export const TTL = {
   /** Thể loại, cài đặt site — gần như không đổi. */
-  static: 1800,
+  static: 300,
   /** Danh sách phim, chi tiết phim. */
-  catalog: 300,
+  catalog: 30,
   /** Lịch chiếu — thay đổi theo tuần. */
-  schedule: 120,
+  schedule: 60,
   /** Bài viết. */
-  posts: 180,
+  posts: 60,
 } as const;
 
 export function ttlCacheGet<T>(key: string): { hit: true; value: T } | { hit: false } {

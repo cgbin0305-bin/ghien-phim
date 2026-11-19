@@ -8,11 +8,11 @@ import {
   Flag,
   Maximize2,
   Minimize2,
-  Moon,
   RefreshCw,
   Server,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CinemaPlayerWrapper } from "@/components/player/cinema-player-wrapper";
 import { buildEmbedUrl } from "@/lib/video/provider";
 import {
   exitFullscreen,
@@ -222,8 +222,17 @@ export function VideoPlayer({
     return onFullscreenChange(sync);
   }, []);
 
-  // Thoát chế độ tắt đèn bằng Escape.
+  // Thoát chế độ tắt đèn bằng Escape và phát tín hiệu cho AmbientParticles tạm dừng.
   React.useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.cinemaMode = lightsOff ? "on" : "off";
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("gheienphim:cinema-mode", { detail: { lightsOff } }),
+      );
+    }
+
     if (!lightsOff) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -313,21 +322,20 @@ export function VideoPlayer({
     : null;
 
   return (
-    <div className="space-y-3">
-      {/* "Tắt đèn": phủ tối phần còn lại của trang, chỉ giữ trình phát sáng. */}
-      {lightsOff && (
-        <div
-          className="fixed inset-0 z-[80] bg-ink-950/95"
-          aria-hidden="true"
-          onClick={() => setLightsOff(false)}
-        />
-      )}
-
+    <CinemaPlayerWrapper isDimmed={lightsOff} onDimmedChange={setLightsOff}>
       <div
         ref={frameRef}
+        style={{
+          transition: "all 0.4s ease",
+          boxShadow: lightsOff
+            ? "0 0 60px rgba(212, 175, 55, 0.25), 0 0 110px rgba(200, 62, 55, 0.18)"
+            : undefined,
+        }}
         className={cn(
-          "relative aspect-video w-full overflow-hidden rounded-xl border border-gold-500/30 bg-black shadow-[0_0_45px_-12px_rgba(212,175,55,0.28),0_20px_50px_-20px_rgba(0,0,0,0.9)]",
-          lightsOff ? "z-[85] border-gold-400/55 shadow-[0_0_70px_-10px_rgba(212,175,55,0.4)]" : "z-0",
+          "cinema-player-frame relative aspect-video w-full overflow-hidden rounded-xl border border-gold-500/30 bg-black shadow-[0_0_45px_-12px_rgba(212,175,55,0.28),0_20px_50px_-20px_rgba(0,0,0,0.9)]",
+          lightsOff
+            ? "cinema-player-active z-50 border-gold-400/65"
+            : "z-0",
           isFullscreen && "mx-auto max-w-none",
         )}
       >
@@ -367,7 +375,7 @@ export function VideoPlayer({
       </div>
 
       {/* Thanh điều khiển Đa Server (Multi-Source Switcher) & Công cụ Trình phát */}
-      <div className="relative z-[86] flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-700/80 bg-ink-900/80 px-3 py-2.5 backdrop-blur-sm">
+      <div className="relative z-50 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-700/80 bg-ink-900/85 px-3 py-2.5 backdrop-blur-sm transition-all duration-300">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1.5 pr-1 text-xs font-medium uppercase tracking-wider text-gold-300/90">
             <Server className="size-3.5 text-gold-400" aria-hidden="true" />
@@ -444,10 +452,23 @@ export function VideoPlayer({
             size="sm"
             onClick={() => setLightsOff((v) => !v)}
             aria-pressed={lightsOff}
-            title={lightsOff ? "Bật đèn" : "Tắt đèn"}
+            aria-label={lightsOff ? "Bật đèn" : "Tắt đèn"}
+            title={
+              lightsOff
+                ? "Bật đèn — Thoát chế độ Rạp Chiếu Cổ Phong"
+                : "Tắt đèn — Bật chế độ Rạp Chiếu Cổ Phong"
+            }
+            className={cn(
+              "border transition-all duration-300",
+              lightsOff
+                ? "border-gold-400/80 bg-gold-500/20 text-gold-200 shadow-[0_0_20px_rgba(212,175,55,0.45)] hover:bg-gold-500/30"
+                : "border-gold-500/35 bg-ink-850/90 text-gold-200 hover:border-gold-400/70 hover:bg-gold-500/15",
+            )}
           >
-            <Moon aria-hidden="true" />
-            <span className="sr-only sm:not-sr-only">{lightsOff ? "Bật đèn" : "Tắt đèn"}</span>
+            <AncientLanternIcon active={lightsOff} />
+            <span className="sr-only sm:not-sr-only">
+              {lightsOff ? "Bật đèn · Rạp Chiếu" : "Tắt đèn · Rạp Chiếu"}
+            </span>
           </Button>
         </div>
       </div>
@@ -494,6 +515,48 @@ export function VideoPlayer({
           .
         </p>
       )}
-    </div>
+    </CinemaPlayerWrapper>
+  );
+}
+
+/**
+ * Biểu tượng Đèn Lồng Cổ Phong (Ancient Chinese Lantern) cho nút công tắc Rạp Chiếu / Tắt Đèn.
+ */
+function AncientLanternIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={cn(
+        "size-4 shrink-0 transition-transform duration-300",
+        active && "lantern-active-icon scale-110",
+      )}
+    >
+      <path d="M12 2V4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M9 4.5H15" stroke="#D4AF37" strokeWidth="1.8" strokeLinecap="round" />
+      <ellipse
+        cx="12"
+        cy="11.5"
+        rx="6.2"
+        ry="6.5"
+        fill={active ? "rgba(212, 175, 55, 0.28)" : "rgba(200, 62, 55, 0.22)"}
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M12 5C9.8 7 9.8 16 12 18M12 5C14.2 7 14.2 16 12 18"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeOpacity="0.65"
+      />
+      <path d="M9 18.2H15" stroke="#D4AF37" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M10.5 18.5V21.5M12 18.5V22.2M13.5 18.5V21.5"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

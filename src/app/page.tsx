@@ -11,12 +11,14 @@ import { PostCard } from "@/components/movie/post-card";
 import { SilkMarquee } from "@/components/movie/silk-marquee";
 import { InstantMovieCatalog } from "@/components/movie/instant-movie-catalog";
 import { BangPhongThan } from "@/components/movie/bang-phong-than";
+import { StaggeredMovieGrid } from "@/components/effects/staggered-movie-grid";
 import { getMoviesCommunityStats } from "@/app/actions/community";
 import { getTodayKey, getWeekStart } from "@/lib/date";
 import type { Genre, MovieWithStats } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const GENRE_SEALS: Record<string, string> = {
   "co-trang": "古",
@@ -27,15 +29,6 @@ const GENRE_SEALS: Record<string, string> = {
   "tinh-hoang": "情",
   "van-co": "文",
 };
-
-const STAGGER_CLASSES = [
-  "stagger-1",
-  "stagger-2",
-  "stagger-3",
-  "stagger-4",
-  "stagger-5",
-  "stagger-6",
-] as const;
 
 export default async function HomePage() {
   const store = await getPublicStore();
@@ -242,19 +235,15 @@ function MovieSection({
   return (
     <section aria-labelledby={id} className="space-y-6">
       <SectionHeading id={id} title={title} description={description} href={href} linkLabel="Xem tất cả" />
-      <div className="grid grid-cols-1 gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
+      <StaggeredMovieGrid staggerMs={70}>
         {movies.map((movie, index) => (
           <MovieCard
             key={movie.id}
             movie={movie}
             priority={index < 3}
-            className={cn(
-              "animate-fade-rise",
-              STAGGER_CLASSES[index % STAGGER_CLASSES.length],
-            )}
           />
         ))}
-      </div>
+      </StaggeredMovieGrid>
     </section>
   );
 }

@@ -6,8 +6,11 @@ import { SafeImage } from "@/components/ui/safe-image";
 import { getPublicStore } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SealStampButton } from "@/components/ui/seal-stamp-button";
 import { MovieCard } from "@/components/movie/movie-card";
 import { BookmarkButton } from "@/components/movie/bookmark-button";
+import { ScrollUnfurlTrigger } from "@/components/movie/scroll-unfurl-modal";
+import { StaggeredMovieGrid } from "@/components/effects/staggered-movie-grid";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { formatDateTime, getTodayKey, getWeekStart } from "@/lib/date";
 import type { Episode, MovieWithStats } from "@/lib/types";
@@ -205,24 +208,33 @@ export default async function MovieDetailPage({ params }: PageProps) {
 
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 {latestEpisode ? (
-                  <Button asChild size="lg">
-                    <Link href={`/xem/${movie.slug}/${latestEpisode.slug}`}>
-                      <Play aria-hidden="true" />
-                      Xem {formatEpisodeLabel(latestEpisode)}
-                    </Link>
-                  </Button>
+                  <SealStampButton
+                    href={`/xem/${movie.slug}/${latestEpisode.slug}`}
+                    variant="cinnabar"
+                    className="h-12 px-7 text-base"
+                  >
+                    <Play className="size-4 fill-current" aria-hidden="true" />
+                    <span>Xem {formatEpisodeLabel(latestEpisode)}</span>
+                  </SealStampButton>
                 ) : (
                   <Button size="lg" disabled>
                     Chưa có tập để xem
                   </Button>
                 )}
                 {firstEpisode && latestEpisode && firstEpisode.id !== latestEpisode.id && (
-                  <Button asChild size="lg" variant="outline">
-                    <Link href={`/xem/${movie.slug}/${firstEpisode.slug}`}>
-                      Từ {formatEpisodeLabel(firstEpisode)}
-                    </Link>
-                  </Button>
+                  <SealStampButton
+                    href={`/xem/${movie.slug}/${firstEpisode.slug}`}
+                    variant="outline"
+                    className="h-12 px-6 text-base"
+                  >
+                    <span>Từ {formatEpisodeLabel(firstEpisode)}</span>
+                  </SealStampButton>
                 )}
+                <ScrollUnfurlTrigger
+                  movie={movie}
+                  label="Họa Quyển Chi Tiết"
+                  className="h-10 px-4 text-sm"
+                />
                 <BookmarkButton
                   variant="pill"
                   movieId={movie.id}
@@ -282,11 +294,14 @@ export default async function MovieDetailPage({ params }: PageProps) {
         {related.length > 0 && (
           <section aria-labelledby="phim-lien-quan" className="space-y-5">
             <SectionHeading id="phim-lien-quan" title="Phim liên quan" />
-            <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-6">
+            <StaggeredMovieGrid
+              staggerMs={70}
+              className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-6"
+            >
               {related.map((m) => (
                 <MovieCard key={m.id} movie={m} />
               ))}
-            </div>
+            </StaggeredMovieGrid>
           </section>
         )}
       </div>

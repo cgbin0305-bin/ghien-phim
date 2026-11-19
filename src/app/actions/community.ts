@@ -424,3 +424,33 @@ export async function resolveBrokenReportAction(formData: FormData): Promise<voi
 
   revalidatePath("/admin");
 }
+
+export interface ModalEpisodeItem {
+  id: string;
+  slug: string;
+  title: string;
+  episodeNumber: number;
+}
+
+/**
+ * Lấy nhanh danh sách các tập đã xuất bản của một bộ phim cho Modal Cuộn Tranh.
+ */
+export async function getPublishedEpisodesByMovieIdAction(
+  movieId: string,
+): Promise<ModalEpisodeItem[]> {
+  try {
+    const { getPublicStore } = await import("@/lib/data");
+    const store = await getPublicStore();
+    const episodes = await store.listEpisodes(movieId);
+    return episodes
+      .filter((ep) => ep.status === "published")
+      .map((ep) => ({
+        id: ep.id,
+        slug: ep.slug,
+        title: ep.title,
+        episodeNumber: ep.episodeNumber,
+      }));
+  } catch {
+    return [];
+  }
+}

@@ -1,9 +1,10 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { getPublicStore } from "@/lib/data";
 import { MovieFilters } from "@/components/movie/movie-filters";
 import { MovieCard } from "@/components/movie/movie-card";
+import { StaggeredMovieGrid } from "@/components/effects/staggered-movie-grid";
 import { Pagination } from "@/components/movie/pagination";
 import { PosterSkeleton } from "@/components/ui/skeleton";
 import type { ReleaseStatus } from "@/lib/types";
@@ -15,7 +16,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/phim" },
 };
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 interface SearchParams {
   q?: string;
@@ -27,11 +29,10 @@ interface SearchParams {
 }
 
 /**
- * Six per page. This keeps the page grid balanced (2 / 3 / 4 / 6 columns) and
- * guarantees the demo catalogue - which ships eight movies - exercises the
- * pagination control instead of always fitting on a single screen.
+ * 12 phim mỗi trang (chia hết cho lưới 2, 3 và 4 cột), đảm bảo hiển thị đầy đủ
+ * toàn bộ danh sách 8 phim trên cùng một trang mà không bị cắt lẻ.
  */
-const PER_PAGE = 6;
+const PER_PAGE = 12;
 
 export default async function MoviesPage({
   searchParams,
@@ -107,11 +108,14 @@ export default async function MoviesPage({
       ) : (
         <>
           <Suspense fallback={<MovieGridSkeleton />}>
-            <div className="mt-6 grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <StaggeredMovieGrid
+              staggerMs={70}
+              className="mt-6 grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            >
               {result.movies.map((movie, index) => (
                 <MovieCard key={movie.id} movie={movie} priority={index < 4} />
               ))}
-            </div>
+            </StaggeredMovieGrid>
           </Suspense>
 
           {result.totalPages > 1 && (

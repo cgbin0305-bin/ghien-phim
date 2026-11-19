@@ -4,6 +4,7 @@ import * as React from "react";
 import { RotateCcw, Search, Sparkles, X } from "lucide-react";
 import type { Genre, MovieWithStats } from "@/lib/types";
 import { MovieCard } from "@/components/movie/movie-card";
+import { StaggeredMovieGrid } from "@/components/effects/staggered-movie-grid";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -364,11 +365,11 @@ export function InstantMovieCatalog({
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
+        <StaggeredMovieGrid staggerMs={65}>
           {filteredMovies.map((movie, index) => (
             <MovieCard key={movie.id} movie={movie} priority={index < 3} />
           ))}
-        </div>
+        </StaggeredMovieGrid>
       )}
     </section>
   );

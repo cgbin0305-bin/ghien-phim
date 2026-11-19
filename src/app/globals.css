@@ -371,6 +371,228 @@
   .link-underline:hover {
     background-size: 100% 1px;
   }
+
+  /* -------------------------------------------------------------------------
+     1. Chế độ Rạp Chiếu Cổ Phong (Cinema Dimmer / Lights Off)
+  ------------------------------------------------------------------------- */
+  .cinema-player-frame {
+    transition: all 0.4s ease;
+  }
+  .cinema-player-active {
+    box-shadow:
+      0 0 60px rgba(212, 175, 55, 0.25),
+      0 0 110px rgba(200, 62, 55, 0.18),
+      0 25px 60px -15px rgba(0, 0, 0, 0.95) !important;
+    border-color: rgba(212, 175, 55, 0.65) !important;
+  }
+
+  @keyframes lantern-glow-pulse {
+    0%,
+    100% {
+      filter: drop-shadow(0 0 4px rgba(212, 175, 55, 0.55));
+    }
+    50% {
+      filter: drop-shadow(0 0 10px rgba(224, 79, 71, 0.9)) drop-shadow(0 0 4px rgba(243, 229, 171, 0.8));
+    }
+  }
+  .lantern-active-icon {
+    animation: lantern-glow-pulse 2.2s ease-in-out infinite;
+  }
+
+  /* -------------------------------------------------------------------------
+     3. Animation 2: Thẻ Phim Hào Quang Kiếm Khí (Cultivation Movie Card Hover)
+  ------------------------------------------------------------------------- */
+  @keyframes border-beam-spin {
+    0% {
+      transform: translate(-50%, -50%) rotate(0deg);
+    }
+    100% {
+      transform: translate(-50%, -50%) rotate(360deg);
+    }
+  }
+
+  .cultivation-card {
+    position: relative;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    transition:
+      border-color 0.35s ease,
+      box-shadow 0.35s ease,
+      background-color 0.3s ease;
+  }
+
+  .cultivation-card:hover {
+    border-color: rgba(212, 175, 55, 0.55);
+    box-shadow:
+      0 18px 38px -12px rgba(0, 0, 0, 0.88),
+      0 0 28px -4px rgba(212, 175, 55, 0.32);
+  }
+
+  /* Vệt sáng kiếm khí vàng kim chạy dọc theo viền thẻ khi hover */
+  .cultivation-border-beam {
+    position: absolute;
+    inset: -1.5px;
+    border-radius: inherit;
+    padding: 2px;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 25;
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  .cultivation-border-beam::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 240%;
+    height: 240%;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg 45deg,
+      rgba(200, 62, 55, 0.6) 80deg,
+      rgba(212, 175, 55, 0.98) 130deg,
+      #fff8dc 166deg,
+      #d4af37 180deg,
+      transparent 185deg 225deg,
+      rgba(200, 62, 55, 0.6) 260deg,
+      rgba(212, 175, 55, 0.98) 310deg,
+      #fff8dc 346deg,
+      #d4af37 360deg
+    );
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+
+  .cultivation-card:hover .cultivation-border-beam,
+  .cultivation-card:focus-within .cultivation-border-beam {
+    opacity: 1;
+  }
+
+  .cultivation-card:hover .cultivation-border-beam::before,
+  .cultivation-card:focus-within .cultivation-border-beam::before {
+    animation: border-beam-spin 2.4s linear infinite !important;
+  }
+
+  /* Phóng to poster mượt mà: scale(1.06) trong 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) */
+  .cultivation-poster-img {
+    transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+    will-change: transform;
+  }
+  .group:hover .cultivation-poster-img {
+    transform: scale(1.06) !important;
+  }
+
+  /* Nút Play chính giữa hình Ấn Triện / Ngọc Bội phát sáng */
+  .jade-seal-play {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 0.65rem;
+    transform: rotate(45deg) scale(0.88);
+    border: 1.5px solid rgba(253, 248, 236, 0.95);
+    background: radial-gradient(
+      circle at 32% 30%,
+      rgba(253, 248, 236, 0.98) 0%,
+      rgba(212, 175, 55, 0.96) 52%,
+      rgba(180, 52, 45, 0.94) 100%
+    );
+    color: #0b0c10;
+    box-shadow:
+      0 0 30px rgba(212, 175, 55, 0.9),
+      0 0 58px rgba(200, 62, 55, 0.55),
+      inset 0 0 0 2px rgba(11, 12, 16, 0.32);
+    transition:
+      transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.42s ease;
+  }
+  .group:hover .jade-seal-play {
+    transform: rotate(45deg) scale(1.06);
+    box-shadow:
+      0 0 38px rgba(253, 248, 236, 0.98),
+      0 0 68px rgba(212, 175, 55, 0.75),
+      inset 0 0 0 2px rgba(11, 12, 16, 0.38);
+  }
+  .jade-seal-play::before {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    border-radius: 0.8rem;
+    border: 1.5px solid rgba(243, 229, 171, 0.8);
+    animation: play-ripple 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    pointer-events: none;
+  }
+  .jade-seal-play-inner {
+    transform: rotate(-45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* -------------------------------------------------------------------------
+     4. Animation 3: Mở Chi Tiết Phim Kiểu Cuộn Tranh (Scroll Unfurl Modal)
+     Được điều khiển trực tiếp bởi Framer Motion (clipPath + trục gỗ trái/phải)
+  ------------------------------------------------------------------------- */
+  .scroll-unfurl-content {
+    will-change: clip-path, opacity;
+  }
+  .scroll-roller-left,
+  .scroll-roller-right {
+    will-change: left, right, transform;
+  }
+
+  /* -------------------------------------------------------------------------
+     5. Animation 4: Nút Bấm Đóng Ấn Triện (Seal Stamp Click Effect)
+  ------------------------------------------------------------------------- */
+  .btn-seal-stamp {
+    position: relative;
+    overflow: hidden;
+    transition:
+      box-shadow 0.25s ease,
+      border-color 0.25s ease;
+  }
+
+  .btn-seal-stamp::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translate3d(-125%, 0, 0) skewX(-20deg);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(253, 248, 236, 0.36) 50%,
+      transparent 100%
+    );
+    transition: transform 0.58s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+  }
+
+  .btn-seal-stamp:hover::after {
+    transform: translate3d(125%, 0, 0) skewX(-20deg);
+  }
+
+  .btn-seal-stamp-shaking {
+    will-change: transform;
+  }
+
+  .seal-ripple-wave {
+    z-index: 20;
+    will-change: transform, opacity;
+  }
+
+  /* -------------------------------------------------------------------------
+     6. Animation 5: Xuất Hiện Danh Sách Phim Kiểu Sương Khói (Staggered Fade-Up)
+     Được điều khiển trực tiếp bởi Framer Motion variants (staggerChildren: 0.07)
+  ------------------------------------------------------------------------- */
+  .mist-stagger-item {
+    will-change: opacity, transform;
+  }
 }
 
 @layer utilities {
@@ -427,14 +649,15 @@
   }
 }
 
-/* Respect the user's motion preference across the whole app, except for the explicit Silk Marquee. */
-@media (prefers-reduced-motion: reduce) {
-  *:not(.silk-marquee-track):not(.silk-marquee-card),
-  *:not(.silk-marquee-track):not(.silk-marquee-card)::before,
-  *:not(.silk-marquee-track):not(.silk-marquee-card)::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
+@keyframes border-spin {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
   }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+.animate-border-spin {
+  animation: border-spin 3s linear infinite;
 }

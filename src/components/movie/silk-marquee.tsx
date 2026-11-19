@@ -4,8 +4,10 @@ import * as React from "react";
 import { Play, Sparkles } from "lucide-react";
 import type { MovieWithStats } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-import { PrefetchLink } from "@/components/ui/prefetch-link";
 import { SafeImage } from "@/components/ui/safe-image";
+import { SealStampButton } from "@/components/ui/seal-stamp-button";
+import { ScrollUnfurlTrigger } from "@/components/movie/scroll-unfurl-modal";
+import { AmbientParticles } from "@/components/effects/ambient-particles";
 
 interface SilkMarqueeProps {
   movies: MovieWithStats[];
@@ -128,7 +130,10 @@ export function SilkMarquee({ movies }: SilkMarqueeProps) {
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(ellipse_70%_60%_at_50%_0%,rgba(212,175,55,0.14),transparent_70%)]"
       />
 
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6">
+      {/* Animation 1: Lá Phong / Hoa Đào Rơi & Đom Đóm (Ambient Particles Canvas) */}
+      <AmbientParticles />
+
+      <div className="relative z-20 mx-auto max-w-[1400px] px-4 sm:px-6">
         <div className="text-shadow-hero flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="mb-2.5 flex flex-wrap items-center gap-2">
@@ -159,8 +164,8 @@ export function SilkMarquee({ movies }: SilkMarqueeProps) {
       <div
         className={
           isSingle
-            ? "silk-marquee-wrapper mx-auto mt-7 max-w-[1400px] px-4 py-5 sm:px-6"
-            : "silk-marquee-wrapper silk-marquee-mask mt-7 overflow-hidden py-5"
+            ? "silk-marquee-wrapper relative z-20 mx-auto mt-7 max-w-[1400px] px-4 py-5 sm:px-6"
+            : "silk-marquee-wrapper silk-marquee-mask relative z-20 mt-7 overflow-hidden py-5"
         }
       >
         <div className={isSingle ? "flex justify-start" : "silk-marquee-track"}>
@@ -173,8 +178,9 @@ export function SilkMarquee({ movies }: SilkMarqueeProps) {
               <div
                 key={`${movie.id}-${index}`}
                 aria-hidden={isDuplicate ? "true" : undefined}
-                className="silk-marquee-card group relative w-[290px] shrink-0 overflow-hidden rounded-xl border border-ink-700/90 bg-ink-900 shadow-card sm:w-[350px] lg:w-[390px]"
+                className="silk-marquee-card cultivation-card group relative w-[290px] shrink-0 overflow-hidden rounded-xl border border-gold-500/25 bg-ink-900 shadow-card sm:w-[350px] lg:w-[390px]"
               >
+                <span aria-hidden="true" className="cultivation-border-beam" />
                 <div className="relative aspect-video w-full overflow-hidden bg-ink-850">
                   {imageSrc ? (
                     <SafeImage
@@ -183,7 +189,7 @@ export function SilkMarquee({ movies }: SilkMarqueeProps) {
                       fill
                       priority={index < 4}
                       sizes="(max-width: 640px) 290px, 390px"
-                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                      className="cultivation-poster-img object-cover"
                     />
                   ) : (
                     <div className="grid h-full place-items-center bg-gradient-to-br from-ink-800 to-ink-900 p-4 text-center">
@@ -220,7 +226,7 @@ export function SilkMarquee({ movies }: SilkMarqueeProps) {
                     </span>
                   )}
 
-                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4">
+                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-4">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-serif text-lg font-bold leading-snug text-parchment-100 transition-colors group-hover:text-gold-200 sm:text-xl">
                         {movie.title}
@@ -231,14 +237,23 @@ export function SilkMarquee({ movies }: SilkMarqueeProps) {
                       </p>
                     </div>
 
-                    <PrefetchLink
-                      href={`/phim/${movie.slug}`}
-                      tabIndex={isDuplicate ? -1 : 0}
-                      className="btn-cinnabar shine-effect inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold tracking-wide text-parchment-100 transition-transform duration-300 group-hover:scale-105"
-                    >
-                      <Play className="size-3.5 fill-current" aria-hidden="true" />
-                      <span>Xem Ngay</span>
-                    </PrefetchLink>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <ScrollUnfurlTrigger
+                        movie={movie}
+                        label="Chi Tiết"
+                        tabIndex={isDuplicate ? -1 : 0}
+                        className="py-2"
+                      />
+                      <SealStampButton
+                        href={`/phim/${movie.slug}`}
+                        tabIndex={isDuplicate ? -1 : 0}
+                        variant="cinnabar"
+                        className="px-3.5 py-2 text-xs"
+                      >
+                        <Play className="size-3.5 fill-current" aria-hidden="true" />
+                        <span>Xem Ngay</span>
+                      </SealStampButton>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -10,6 +10,7 @@ import { CultivationReactions } from "@/components/player/cultivation-reactions"
 import { BookmarkButton } from "@/components/movie/bookmark-button";
 import { getMoviesCommunityStats } from "@/app/actions/community";
 import { Button } from "@/components/ui/button";
+import { SealStampButton } from "@/components/ui/seal-stamp-button";
 
 export const revalidate = 300;
 
@@ -82,12 +83,14 @@ export default async function WatchPage({ params }: PageProps) {
             </Button>
           )}
           {next && (
-            <Button asChild variant="secondary" size="sm">
-              <Link href={`/xem/${movie.slug}/${next.slug}`}>
-                Tập sau
-                <ChevronRight aria-hidden="true" />
-              </Link>
-            </Button>
+            <SealStampButton
+              href={`/xem/${movie.slug}/${next.slug}`}
+              variant="cinnabar"
+              className="h-8 px-3 text-xs"
+            >
+              <span>Tập tiếp theo</span>
+              <ChevronRight className="size-3.5" aria-hidden="true" />
+            </SealStampButton>
           )}
         </div>
       </div>
@@ -153,12 +156,14 @@ export default async function WatchPage({ params }: PageProps) {
                 </Button>
               )}
               {next && (
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/xem/${movie.slug}/${next.slug}`}>
-                    {next.title || `Tập ${next.episodeNumber}`}
-                    <ChevronRight aria-hidden="true" />
-                  </Link>
-                </Button>
+                <SealStampButton
+                  href={`/xem/${movie.slug}/${next.slug}`}
+                  variant="cinnabar"
+                  className="h-8 px-3.5 text-xs"
+                >
+                  <span>Tập tiếp theo ({next.title || `Tập ${next.episodeNumber}`})</span>
+                  <ChevronRight className="size-3.5" aria-hidden="true" />
+                </SealStampButton>
               )}
             </div>
           </div>
