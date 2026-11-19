@@ -25,6 +25,7 @@ import type {
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { slugify } from "@/lib/slug";
+import { sortEpisodes } from "@/lib/episode-sort";
 import { addDays, getWeekUtcRange } from "@/lib/date";
 import { isUuid } from "@/lib/data/uuid";
 
@@ -311,7 +312,8 @@ export function createSupabaseStore(client: Db): DataStore {
   async function hydrateEpisodes(rows: DbEpisodeRow[]): Promise<Episode[]> {
     if (rows.length === 0) return [];
     const sourceMap = await loadSources(rows.map((r) => r.id));
-    return rows.map((row) => mapEpisode(row, sourceMap.get(row.id) ?? []));
+    const hydrated = rows.map((row) => mapEpisode(row, sourceMap.get(row.id) ?? []));
+    return sortEpisodes(hydrated);
   }
 
   /**
@@ -924,12 +926,11 @@ export function createSupabaseStore(client: Db): DataStore {
         .select("*")
         .eq("movie_id", movieId)
         .eq("status", "published")
-        .order("episode_number", { ascending: false })
-        .limit(1);
+        .order("episode_number", { ascending: true });
       const rows = (data ?? []) as unknown as DbEpisodeRow[];
       if (rows.length === 0) return null;
-      const [episode] = await hydrateEpisodes(rows);
-      return episode ?? null;
+      const episodes = await hydrateEpisodes(rows);
+      return episodes[episodes.length - 1] ?? null;
     },
 
     async createEpisode(input: EpisodeInput) {

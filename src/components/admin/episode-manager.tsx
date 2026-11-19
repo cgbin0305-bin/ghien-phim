@@ -21,6 +21,7 @@ import {
   toggleEpisodeStatusAction,
   updateEpisodeAction,
 } from "@/app/admin/(panel)/phim/episodes-actions";
+import { sortEpisodes } from "@/lib/episode-sort";
 import type { Episode } from "@/lib/types";
 
 /**
@@ -47,6 +48,13 @@ export function EpisodeManager({
   const [creating, setCreating] = React.useState(false);
   const [pendingDelete, setPendingDelete] = React.useState<Episode | null>(null);
 
+  const sortedEpisodes = React.useMemo(() => sortEpisodes(episodes), [episodes]);
+
+  const existingEpisodeNumbers = React.useMemo(
+    () => episodes.map((ep) => ep.episodeNumber),
+    [episodes],
+  );
+
   const nextEpisodeNumber = React.useMemo(
     () => episodes.reduce((max, ep) => Math.max(max, ep.episodeNumber), 0) + 1,
     [episodes],
@@ -69,7 +77,7 @@ export function EpisodeManager({
         </Button>
       </div>
 
-      {episodes.length === 0 ? (
+      {sortedEpisodes.length === 0 ? (
         <div className="panel px-6 py-12 text-center">
           <p className="font-serif text-base text-parchment-200">Chưa có tập nào</p>
           <p className="mt-1.5 text-sm text-parchment-300/80">
@@ -78,7 +86,7 @@ export function EpisodeManager({
         </div>
       ) : (
         <ul className="space-y-3">
-          {episodes.map((episode) => (
+          {sortedEpisodes.map((episode) => (
             <li key={episode.id} className="panel p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -180,6 +188,7 @@ export function EpisodeManager({
             movieId={movieId}
             defaults={{}}
             nextEpisodeNumber={nextEpisodeNumber}
+            existingEpisodeNumbers={existingEpisodeNumbers}
             action={createEpisodeAction}
             submitLabel="Tạo tập"
             onSuccess={() => setCreating(false)}

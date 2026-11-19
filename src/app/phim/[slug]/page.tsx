@@ -13,6 +13,7 @@ import { ScrollUnfurlTrigger } from "@/components/movie/scroll-unfurl-modal";
 import { StaggeredMovieGrid } from "@/components/effects/staggered-movie-grid";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { formatDateTime, getTodayKey, getWeekStart } from "@/lib/date";
+import { getEpisodeBadgeNumber, sortEpisodes } from "@/lib/episode-sort";
 import type { Episode, MovieWithStats } from "@/lib/types";
 
 export const revalidate = 300;
@@ -71,7 +72,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
     store.getScheduleForWeek(getWeekStart(getTodayKey())),
   ]);
 
-  const publishedEpisodes = episodes.filter((e) => e.status === "published");
+  const publishedEpisodes = sortEpisodes(episodes.filter((e) => e.status === "published"));
   const latestEpisode = publishedEpisodes[publishedEpisodes.length - 1] ?? null;
   const firstEpisode = publishedEpisodes[0] ?? null;
   const movieSchedule = week.events
@@ -359,8 +360,9 @@ function EpisodeList({
         </p>
       </div>
       <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {episodes.map((episode) => {
+        {episodes.map((episode, index) => {
           const label = formatEpisodeLabel(episode);
+          const badgeNum = getEpisodeBadgeNumber(episode, index);
           const partCount = episode.sources.length;
           return (
             <li key={episode.id}>
@@ -370,7 +372,7 @@ function EpisodeList({
               >
                 <span className="flex min-w-0 items-center gap-2.5">
                   <span className="grid size-7 shrink-0 place-items-center rounded border border-ink-700 bg-ink-900 text-xs tabular-nums text-gold-300 transition-colors group-hover:border-gold-500/50 group-hover:bg-gold-500/15">
-                    {episode.episodeNumber}
+                    {badgeNum}
                   </span>
                   <span className="truncate">{label}</span>
                 </span>

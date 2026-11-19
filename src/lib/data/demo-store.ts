@@ -28,6 +28,7 @@ import type {
   ScheduleWeek,
 } from "@/lib/data/types";
 import { slugify } from "@/lib/slug";
+import { sortEpisodes } from "@/lib/episode-sort";
 import { addDays, getWeekUtcRange } from "@/lib/date";
 
 /**
@@ -291,25 +292,23 @@ export function createDemoStore(): DataStore {
     },
 
     async listEpisodes(movieId) {
-      return episodes
-        .filter((e) => e.movieId === movieId)
-        .sort((a, b) => a.episodeNumber - b.episodeNumber);
+      return sortEpisodes(episodes.filter((e) => e.movieId === movieId));
     },
 
     async getEpisodeBySlug(movieSlug, episodeSlug) {
       const movie = movies.find((m) => m.slug === movieSlug && m.status === "published");
       if (!movie) return null;
-      const own = episodes.filter((e) => e.movieId === movie.id);
+      const own = sortEpisodes(episodes.filter((e) => e.movieId === movie.id));
       const episode = own.find((e) => e.slug === episodeSlug && e.status === "published");
       if (!episode) return null;
-      return { episode, movie: withStats(movie), siblings: own.sort((a, b) => a.episodeNumber - b.episodeNumber) };
+      return { episode, movie: withStats(movie), siblings: own };
     },
 
     async getLatestPublishedEpisode(movieId) {
-      const own = episodes
-        .filter((e) => e.movieId === movieId && e.status === "published")
-        .sort((a, b) => b.episodeNumber - a.episodeNumber);
-      return own[0] ?? null;
+      const own = sortEpisodes(
+        episodes.filter((e) => e.movieId === movieId && e.status === "published"),
+      );
+      return own[own.length - 1] ?? null;
     },
 
     async createEpisode(input: EpisodeInput) {

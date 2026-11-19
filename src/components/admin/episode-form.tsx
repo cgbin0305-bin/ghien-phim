@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/toast";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { VideoSourcePreview } from "@/components/admin/video-source-preview";
 import { PROVIDER_HINTS } from "@/lib/video/provider";
+import { extractEpisodeNumbers } from "@/lib/episode-sort";
 import { slugify } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,7 @@ export function EpisodeForm({
   movieId,
   defaults,
   nextEpisodeNumber = 1,
+  existingEpisodeNumbers = [],
   action,
   submitLabel,
   onSuccess,
@@ -70,6 +72,8 @@ export function EpisodeForm({
   defaults: EpisodeFormDefaults;
   /** Số thứ tự tập tiếp theo được gợi ý tự động để không bị trùng khi thêm nhiều phần. */
   nextEpisodeNumber?: number;
+  /** Danh sách các số STT đã được dùng trong phim để tránh trùng lặp khi tự động gán theo tên tập. */
+  existingEpisodeNumbers?: number[];
   action: (
     prev: { error?: string; success?: string; fieldErrors?: Record<string, string> },
     formData: FormData,
@@ -82,6 +86,7 @@ export function EpisodeForm({
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [serverSuccess, setServerSuccess] = React.useState<string | null>(null);
   const [slugTouched, setSlugTouched] = React.useState(Boolean(defaults.slug));
+  const [epNumTouched, setEpNumTouched] = React.useState(Boolean(defaults.episodeNumber));
 
   // Bộ ghép nhanh Mùa / Tập / Phần (ví dụ: Mùa 4 Phần 1, Tập 5 Phần 2)
   const [seasonPart, setSeasonPart] = React.useState("");
@@ -140,11 +145,24 @@ export function EpisodeForm({
     [setValue, slugTouched],
   );
 
-  // Tự động tạo slug tập dựa vào Tên tập cho tới khi người dùng tự sửa ô slug.
+  // Tự động tạo slug tập và đồng bộ STT (episodeNumber) dựa vào Tên tập cho tới khi người dùng tự sửa tay.
   React.useEffect(() => {
-    if (slugTouched) return;
-    setValue("slug", slugify(title), { shouldValidate: false });
-  }, [title, slugTouched, setValue]);
+    if (!slugTouched) {
+      setValue("slug", slugify(title), { shouldValidate: false });
+    }
+    if (!epNumTouched && title.trim()) {
+      const nums = extractEpisodeNumbers({ title });
+      const candidate = nums[0];
+      if (typeof candidate === "number" && candidate >= 1) {
+        const used = new Set(existingEpisodeNumbers);
+        let resolved = candidate;
+        while (used.has(resolved)) {
+          resolved += 1;
+        }
+        setValue("episodeNumber", String(resolved), { shouldValidate: false });
+      }
+    }
+  }, [title, slugTouched, epNumTouched, existingEpisodeNumbers, setValue]);
 
   function updateSource(index: number, patch: Partial<SourceDraft>) {
     setSources((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)));
@@ -265,6 +283,7 @@ export function EpisodeForm({
     setEpNumPart("");
     setSubPart("");
     setSlugTouched(false);
+    setEpNumTouched(false);
     setSources([{ provider: "youtube", sourceUrl: "", label: "Phần 1 / Nguồn 1" }]);
     router.refresh();
     onSuccess?.();
@@ -362,6 +381,10 @@ export function EpisodeForm({
               inputMode="numeric"
               placeholder="1"
               {...register("episodeNumber")}
+              onChange={(e) => {
+                setEpNumTouched(e.target.value.trim().length > 0);
+                register("episodeNumber").onChange(e);
+              }}
             />
             <p className="text-xs text-mist-400">
               Dùng để sắp xếp thứ tự tập/phần (tự động tăng để không bị trùng khi 1 tập có nhiều phần).

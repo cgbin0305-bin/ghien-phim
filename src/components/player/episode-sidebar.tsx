@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ListVideo } from "lucide-react";
+import { getEpisodeBadgeNumber, sortEpisodes } from "@/lib/episode-sort";
 import type { Episode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,8 @@ export function EpisodeSidebar({
 }: EpisodeSidebarProps) {
   if (episodes.length === 0) return null;
 
+  const sortedEpisodes = sortEpisodes(episodes);
+
   return (
     <aside
       aria-label={`Danh sách tập ${movieTitle}`}
@@ -32,12 +35,13 @@ export function EpisodeSidebar({
         <h2 className="font-serif text-sm font-semibold text-parchment-100">
           Danh sách tập
         </h2>
-        <span className="ml-auto text-xs text-mist-500">{episodes.length} tập</span>
+        <span className="ml-auto text-xs text-mist-500">{sortedEpisodes.length} tập</span>
       </div>
 
       <ul className="max-h-[420px] overflow-y-auto p-2 lg:max-h-[calc(100vh-12rem)]">
-        {episodes.map((episode) => {
+        {sortedEpisodes.map((episode, index) => {
           const isCurrent = episode.id === currentEpisodeId;
+          const badgeNum = getEpisodeBadgeNumber(episode, index);
           return (
             <li key={episode.id}>
               <Link
@@ -58,7 +62,7 @@ export function EpisodeSidebar({
                       : "border-ink-700 text-parchment-300/85",
                   )}
                 >
-                  {episode.episodeNumber}
+                  {badgeNum}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{episode.title}</span>
                 {episode.releaseDate && (

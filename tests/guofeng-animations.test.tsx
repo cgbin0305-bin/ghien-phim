@@ -7,6 +7,7 @@ import { StaggeredMovieGrid } from "@/components/effects/staggered-movie-grid";
 import { SealStampButton } from "@/components/ui/seal-stamp-button";
 import { ScrollUnfurlTrigger } from "@/components/movie/scroll-unfurl-modal";
 import { MovieCard } from "@/components/movie/movie-card";
+import { sortEpisodes } from "@/lib/episode-sort";
 import type { MovieWithStats, VideoSource } from "@/lib/types";
 
 vi.mock("next/navigation", () => ({
@@ -158,5 +159,30 @@ describe("6. Animation 5: Xuất Hiện Danh Sách Phim Kiểu Sương Khói (St
     const grid = screen.getByTestId("staggered-movie-grid");
     const items = grid.querySelectorAll(".mist-stagger-item");
     expect(items).toHaveLength(3);
+  });
+});
+
+describe("7. Sắp xếp tập phim tự nhiên (sortEpisodes 1 -> 23)", () => {
+  it("luôn sắp xếp từ Tập 1 -> Tập 23 kể cả khi Tập 23 được thêm đầu tiên với STT = 1", () => {
+    const outOfOrder = [
+      { id: "ep-23", episodeNumber: 1, title: "Tập 23", slug: "tap-23" },
+      { id: "ep-1", episodeNumber: 2, title: "Tập 1", slug: "tap-1" },
+      { id: "ep-2", episodeNumber: 3, title: "Tập 2", slug: "tap-2" },
+      { id: "ep-10", episodeNumber: 4, title: "Tập 10", slug: "tap-10" },
+      { id: "ep-5-2", episodeNumber: 5, title: "Tập 5 - Phần 2", slug: "tap-5-phan-2" },
+      { id: "ep-5-1", episodeNumber: 6, title: "Tập 5 - Phần 1", slug: "tap-5-phan-1" },
+      { id: "ep-22", episodeNumber: 7, title: "Tập 22", slug: "tap-22" },
+    ];
+
+    const sorted = sortEpisodes(outOfOrder);
+    expect(sorted.map((e) => e.title)).toEqual([
+      "Tập 1",
+      "Tập 2",
+      "Tập 5 - Phần 1",
+      "Tập 5 - Phần 2",
+      "Tập 10",
+      "Tập 22",
+      "Tập 23",
+    ]);
   });
 });
