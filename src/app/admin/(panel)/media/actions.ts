@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
-import { isDemoMode } from "@/lib/env";
+import { isDemoMode, siteConfig } from "@/lib/env";
 import { getAdminClient } from "@/lib/supabase/admin-storage";
+import { createClient } from "@/lib/supabase/server";
 
 /** Bucket lưu ảnh công khai (xem `supabase/migrations/003_storage.sql`). */
 const BUCKET = "media";
@@ -63,16 +64,19 @@ export async function uploadImageAction(formData: FormData): Promise<UploadImage
   const fileName = `${safeBase || "image"}-${Date.now()}.${extension}`;
 
   try {
-    const admin = getAdminClient();
-    const { error } = await admin.storage
+    const storageClient = siteConfig.serviceRoleKey
+      ? getAdminClient()
+      : await createClient();
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const { error } = await storageClient.storage
       .from(BUCKET)
-      .upload(fileName, file, { contentType: file.type, upsert: false });
+      .upload(fileName, fileBuffer, { contentType: file.type, upsert: false });
 
     if (error) {
       return { error: `Không tải lên được: ${error.message}` };
     }
 
-    const { data } = admin.storage.from(BUCKET).getPublicUrl(fileName);
+    const { data } = storageClient.storage.from(BUCKET).getPublicUrl(fileName);
 
     revalidatePath("/admin/cai-dat");
     return { success: "Đã tải ảnh lên.", url: data.publicUrl };

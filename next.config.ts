@@ -36,6 +36,12 @@ const csp = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  experimental: {
+    serverActions: {
+      // Cho phép upload ảnh poster/backdrop tới 5 MB (mặc định Next.js chỉ 1 MB).
+      bodySizeLimit: "6mb",
+    },
+  },
   images: {
     // Nguồn sự thật duy nhất, dùng chung với `src/lib/image-hosts.ts` và
     // component `<SafeImage>`.
