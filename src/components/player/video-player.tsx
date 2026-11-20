@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { MotionConfig, motion } from "framer-motion";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -40,6 +41,8 @@ interface VideoPlayerProps {
   episodeTitle?: string;
   /** Cấu hình Donate / Thưởng Linh Thạch đã được chỉnh sửa từ Admin. */
   donateConfig?: DonateConfig;
+  /** Chỉ định phần phát ban đầu (0-based, từ ?phan= trên URL). */
+  initialPartIndex?: number;
 }
 
 interface EmbedState {
@@ -96,6 +99,7 @@ export function VideoPlayer({
   episodeSlug,
   episodeTitle,
   donateConfig,
+  initialPartIndex,
 }: VideoPlayerProps) {
   // Hỗ trợ tách linh hoạt nhiều link trong cùng 1 trường sourceUrl (ngăn cách bởi dấu phẩy `,` hoặc xuống dòng `\n`)
   const valid = React.useMemo<NormalizedServerEntry[]>(() => {
@@ -148,17 +152,28 @@ export function VideoPlayer({
     }));
   }, [sources]);
 
-  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [activeIndex, setActiveIndex] = React.useState(() => {
+    if (
+      initialPartIndex !== undefined &&
+      initialPartIndex >= 0 &&
+      initialPartIndex < valid.length
+    ) {
+      return initialPartIndex;
+    }
+    return 0;
+  });
   const [lightsOff, setLightsOff] = React.useState(false);
   /**
-   * Trạng thái toàn màn hình.
-   *
-   * KHÔNG bao giờ set thủ công khi bấm nút: state này luôn được suy ra từ
-   * `document.fullscreenElement`. Nhờ vậy, khi người dùng bấm `ESC` (hoặc
-   * trình duyệt tự thoát fullscreen), nút bấm cũng cập nhật đúng theo — trước
-   * đây state nội bộ và thực tế lệch nhau.
+   * Trạng thái toàn màn hình thực tế từ trình duyệt (`fullscreenElement`).
    */
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [isNativeFullscreen, setIsNativeFullscreen] = React.useState(false);
+  /**
+   * Fallback toàn màn hình bằng CSS (`fixed inset-0 z-[150] h-[100dvh] w-screen`)
+   * dành cho iOS Safari, Chrome iOS và các trình duyệt di động / WebView không hỗ
+   * trợ `Element.requestFullscreen()` trên thẻ `<div>`.
+   */
+  const [isPseudoFullscreen, setIsPseudoFullscreen] = React.useState(false);
+  const isExpanded = isNativeFullscreen || isPseudoFullscreen;
   const [reloadKey, setReloadKey] = React.useState(0);
   const [iframeLoaded, setIframeLoaded] = React.useState(false);
   const [reportBanner, setReportBanner] = React.useState<{
@@ -173,6 +188,14 @@ export function VideoPlayer({
   }, [activeIndex, reloadKey]);
 
   React.useEffect(() => {
+    if (
+      initialPartIndex !== undefined &&
+      initialPartIndex >= 0 &&
+      initialPartIndex < valid.length
+    ) {
+      setActiveIndex(initialPartIndex);
+      return;
+    }
     if (!storageKey || valid.length === 0) return;
     try {
       const stored = window.localStorage.getItem(storageKey);
@@ -184,7 +207,7 @@ export function VideoPlayer({
     } catch {
       // Ignore storage failures.
     }
-  }, [storageKey, valid.length]);
+  }, [storageKey, valid.length, initialPartIndex]);
 
   const selectSource = (index: number) => {
     setActiveIndex(index);
@@ -196,36 +219,84 @@ export function VideoPlayer({
     }
   };
 
-  // "Mở rộng" dùng Fullscreen API trên đúng khung phát.
+  // "Mở rộng" ưu tiên Fullscreen API chuẩn; nếu thiết bị di động (iOS Safari /
+  // in-app WebView) không hỗ trợ hoặc từ chối -> tự động bật fallback toàn màn hình CSS.
   const toggleExpanded = React.useCallback(() => {
     const frame = frameRef.current;
     if (!frame) return;
 
-    // Quyết định vào/ra dựa trên trạng thái thực tế của trình duyệt, không
-    // dựa vào state — tránh lệch khi người dùng đã thoát fullscreen bằng ESC.
-    if (getFullscreenElement()) {
-      void exitFullscreen().catch(() => undefined);
+    const unlockOrientation = () => {
+      try {
+        const orientation = screen.orientation as ScreenOrientation & { unlock?: () => void };
+        orientation?.unlock?.();
+      } catch {
+        // Bỏ qua nếu trình duyệt không hỗ trợ
+      }
+    };
+
+    if (isPseudoFullscreen) {
+      setIsPseudoFullscreen(false);
+      unlockOrientation();
       return;
     }
 
-    void requestFullscreen(frame).catch(() => undefined);
-  }, []);
+    if (getFullscreenElement()) {
+      void exitFullscreen()
+        .catch(() => undefined)
+        .finally(unlockOrientation);
+      return;
+    }
+
+    void requestFullscreen(frame)
+      .then(() => {
+        try {
+          if (typeof window !== "undefined" && window.innerWidth < 1024) {
+            const orientation = screen.orientation as ScreenOrientation & {
+              lock?: (mode: string) => Promise<void>;
+            };
+            void orientation?.lock?.("landscape")?.catch(() => undefined);
+          }
+        } catch {
+          // Bỏ qua nếu trình duyệt không hỗ trợ khoá xoay ngang
+        }
+      })
+      .catch(() => {
+        // iOS Safari / Mobile WebView không hỗ trợ requestFullscreen trên <div>
+        setIsPseudoFullscreen(true);
+      });
+  }, [isPseudoFullscreen]);
 
   /**
-   * Đồng bộ `isFullscreen` với trạng thái thực tế của trình duyệt.
+   * Đồng bộ `isNativeFullscreen` với trạng thái thực tế của trình duyệt.
    *
    * Nghe tất cả biến thể sự kiện (`fullscreenchange`, `webkitfullscreenchange`,
    * `mozfullscreenchange`, `MSFullscreenChange`) để hoạt động trên cả Safari.
    */
   React.useEffect(() => {
-    const sync = () => setIsFullscreen(getFullscreenElement() !== null);
+    const sync = () => setIsNativeFullscreen(getFullscreenElement() !== null);
 
-    // Đồng bộ ngay khi mount (ví dụ người dùng F11 hoặc mở lại tab đang
-    // fullscreen) để không có khoảng thời gian giao diện bị lệch.
     sync();
 
     return onFullscreenChange(sync);
   }, []);
+
+  // Khoá cuộn trang & cho phép bấm Escape khi đang ở chế độ toàn màn hình fallback trên mobile.
+  React.useEffect(() => {
+    if (!isPseudoFullscreen) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsPseudoFullscreen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isPseudoFullscreen]);
 
   // Thoát chế độ tắt đèn bằng Escape và phát tín hiệu cho AmbientParticles tạm dừng.
   React.useEffect(() => {
@@ -320,10 +391,10 @@ export function VideoPlayer({
 
   const active: EmbedState | null = valid[activeIndex]
     ? {
-        src: valid[activeIndex]!.embed.embedUrl,
-        canonicalUrl: valid[activeIndex]!.embed.canonicalUrl,
-        provider: valid[activeIndex]!.embed.provider,
-      }
+      src: valid[activeIndex]!.embed.embedUrl,
+      canonicalUrl: valid[activeIndex]!.embed.canonicalUrl,
+      provider: valid[activeIndex]!.embed.provider,
+    }
     : null;
 
   return (
@@ -337,13 +408,25 @@ export function VideoPlayer({
             : undefined,
         }}
         className={cn(
-          "cinema-player-frame relative aspect-video w-full overflow-hidden rounded-xl border border-gold-500/30 bg-black shadow-[0_0_45px_-12px_rgba(212,175,55,0.28),0_20px_50px_-20px_rgba(0,0,0,0.9)]",
-          lightsOff
-            ? "cinema-player-active z-50 border-gold-400/65"
-            : "z-0",
-          isFullscreen && "mx-auto max-w-none",
+          "cinema-player-frame overflow-hidden bg-black transition-all duration-300",
+          isPseudoFullscreen
+            ? "fixed inset-0 z-[150] h-[100dvh] w-screen rounded-none border-0"
+            : "relative aspect-video w-full rounded-xl border border-gold-500/30 shadow-[0_0_45px_-12px_rgba(212,175,55,0.28),0_20px_50px_-20px_rgba(0,0,0,0.9)]",
+          !isPseudoFullscreen && (lightsOff ? "cinema-player-active z-50 border-gold-400/65" : "z-0"),
+          isNativeFullscreen && "mx-auto max-w-none",
         )}
       >
+        {isExpanded && (
+          <button
+            type="button"
+            onClick={toggleExpanded}
+            aria-label="Thoát toàn màn hình"
+            className="absolute bottom-4 right-3 z-[160] inline-flex min-h-10 items-center gap-1.5 rounded-full border-2 border-white/85 bg-gradient-to-r from-gold-400 to-gold-300 px-4 py-2 text-xs font-bold text-ink-950 shadow-[0_4px_20px_rgba(0,0,0,0.85),0_0_18px_rgba(212,175,55,0.65)] transition-transform hover:brightness-110 active:scale-95 sm:bottom-5 sm:right-5"
+          >
+            <Minimize2 className="size-4" aria-hidden="true" />
+            <span>Thu nhỏ</span>
+          </button>
+        )}
         {active && !iframeLoaded && (
           <div
             aria-hidden="true"
@@ -380,105 +463,135 @@ export function VideoPlayer({
       </div>
 
       {/* Thanh điều khiển Đa Server (Multi-Source Switcher) & Công cụ Trình phát */}
-      <div className="relative z-50 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-700/80 bg-ink-900/85 px-3 py-2.5 backdrop-blur-sm transition-all duration-300">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1.5 pr-1 text-xs font-medium uppercase tracking-wider text-gold-300/90">
-            <Server className="size-3.5 text-gold-400" aria-hidden="true" />
-            Đổi Server:
-          </span>
-          {valid.length === 0 ? (
-            <span className="text-xs text-mist-400">Chưa có Server</span>
-          ) : (
-            valid.map((entry, index) => (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => selectSource(index)}
-                aria-pressed={index === activeIndex}
-                className={cn(
-                  "rounded-md border px-3 py-1.5 text-xs font-medium transition-all duration-200",
-                  index === activeIndex
-                    ? "border-gold-400/75 bg-gradient-to-b from-gold-300 to-gold-400 text-ink-950 font-semibold shadow-[0_2px_12px_-2px_rgba(212,175,55,0.5)]"
-                    : "border-ink-700 bg-ink-850/85 text-parchment-200 hover:border-gold-500/45 hover:text-gold-200",
-                )}
-              >
-                {entry.serverName}
-              </button>
-            ))
-          )}
-        </div>
-
-        <div className="ml-auto flex flex-wrap items-center gap-1.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => void handleReportBrokenLink()}
-            disabled={reporting}
-            title="Báo lỗi tập phim / Tự động chuyển sang Server dự phòng"
-            className="border border-rouge-500/35 bg-rouge-500/10 text-rouge-200 hover:border-rouge-400/60 hover:bg-rouge-500/20"
-          >
-            <Flag className="size-3.5" aria-hidden="true" />
-            <span>Báo lỗi tập phim</span>
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setReloadKey((k) => k + 1)}
-            title="Tải lại trình phát"
-          >
-            <RefreshCw aria-hidden="true" />
-            <span className="sr-only sm:not-sr-only">Tải lại</span>
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={toggleExpanded}
-            aria-pressed={isFullscreen}
-            title={isFullscreen ? "Thu nhỏ trình phát" : "Mở rộng trình phát"}
-          >
-            {isFullscreen ? (
-              <Minimize2 aria-hidden="true" />
+      <MotionConfig reducedMotion="never">
+        <div className="relative z-50 flex flex-col gap-3 rounded-xl border border-ink-700/80 bg-ink-900/85 px-3.5 py-3 backdrop-blur-sm transition-all duration-300 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 pr-1 text-xs font-semibold uppercase tracking-wider text-gold-300/90 sm:text-sm">
+              <Server className="size-4 text-gold-400" aria-hidden="true" />
+              Đổi Server:
+            </span>
+            {valid.length === 0 ? (
+              <span className="text-sm text-mist-400">Chưa có Server</span>
             ) : (
-              <Maximize2 aria-hidden="true" />
+              valid.map((entry, index) => {
+                const isActive = index === activeIndex;
+                return (
+                  <motion.button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => selectSource(index)}
+                    aria-pressed={isActive}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: "spring", stiffness: 360, damping: 24 }}
+                    className={cn(
+                      "group relative inline-flex min-h-10 items-center justify-center overflow-hidden rounded-lg p-[1.5px] text-sm font-semibold transition-shadow duration-300",
+                      isActive
+                        ? "shadow-[0_0_20px_-2px_rgba(212,175,55,0.65)]"
+                        : "hover:shadow-[0_0_20px_-2px_rgba(212,175,55,0.5)]",
+                    )}
+                  >
+                    {/* Hào Quang Kiếm Khí xoay quanh viền khi hover (giống thẻ phim) */}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "pointer-events-none absolute -inset-full transition-opacity duration-300 animate-border-spin",
+                        isActive ? "opacity-90" : "opacity-0 group-hover:opacity-100",
+                      )}
+                      style={{
+                        background: "conic-gradient(transparent 260deg, #D4AF37 360deg)",
+                      }}
+                    />
+                    <span
+                      className={cn(
+                        "relative z-10 inline-flex min-h-[37px] items-center justify-center rounded-[7px] px-4 py-1.5 transition-colors duration-200",
+                        isActive
+                          ? "bg-gradient-to-b from-gold-300 to-gold-400 text-ink-950 font-bold"
+                          : "border border-ink-700 bg-ink-850/95 text-parchment-100 group-hover:border-transparent group-hover:bg-ink-900 group-hover:text-gold-200",
+                      )}
+                    >
+                      {entry.serverName}
+                    </span>
+                  </motion.button>
+                );
+              })
             )}
-            <span className="sr-only sm:not-sr-only">
-              {isFullscreen ? "Thu nhỏ" : "Mở rộng"}
-            </span>
-          </Button>
+          </div>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setLightsOff((v) => !v)}
-            aria-pressed={lightsOff}
-            aria-label={lightsOff ? "Bật đèn" : "Tắt đèn"}
-            title={
-              lightsOff
-                ? "Bật đèn — Thoát chế độ Rạp Chiếu Cổ Phong"
-                : "Tắt đèn — Bật chế độ Rạp Chiếu Cổ Phong"
-            }
-            className={cn(
-              "border transition-all duration-300",
-              lightsOff
-                ? "border-gold-400/80 bg-gold-500/20 text-gold-200 shadow-[0_0_20px_rgba(212,175,55,0.45)] hover:bg-gold-500/30"
-                : "border-gold-500/35 bg-ink-850/90 text-gold-200 hover:border-gold-400/70 hover:bg-gold-500/15",
-            )}
-          >
-            <AncientLanternIcon active={lightsOff} />
-            <span className="sr-only sm:not-sr-only">
-              {lightsOff ? "Bật đèn · Rạp Chiếu" : "Tắt đèn · Rạp Chiếu"}
-            </span>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <Button
+              type="button"
+              variant="ghost"
+              size="default"
+              onClick={() => void handleReportBrokenLink()}
+              disabled={reporting}
+              title="Báo lỗi tập phim / Tự động chuyển sang Server dự phòng"
+              className="min-h-10 border border-rouge-500/35 bg-rouge-500/10 px-3.5 text-sm text-rouge-200 hover:border-rouge-400/60 hover:bg-rouge-500/20"
+            >
+              <Flag className="size-4" aria-hidden="true" />
+              <span>Báo lỗi tập phim</span>
+            </Button>
 
-          <DonateTriggerButton config={donateConfig} />
+            <Button
+              type="button"
+              variant="ghost"
+              size="default"
+              onClick={() => setReloadKey((k) => k + 1)}
+              aria-label="Tải lại"
+              title="Tải lại trình phát"
+              className="min-h-10 border border-ink-700/80 bg-ink-850/75 px-3.5 text-sm"
+            >
+              <RefreshCw className="size-4" aria-hidden="true" />
+              <span>Tải lại</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="default"
+              onClick={toggleExpanded}
+              aria-pressed={isExpanded}
+              aria-label={isExpanded ? "Thu nhỏ" : "Mở rộng"}
+              title={isExpanded ? "Thu nhỏ trình phát" : "Mở rộng trình phát"}
+              className="min-h-10 border border-ink-700/80 bg-ink-850/75 px-3.5 text-sm"
+            >
+              {isExpanded ? (
+                <Minimize2 className="size-4" aria-hidden="true" />
+              ) : (
+                <Maximize2 className="size-4" aria-hidden="true" />
+              )}
+              <span>{isExpanded ? "Thu nhỏ" : "Mở rộng"}</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="default"
+              onClick={() => setLightsOff((v) => !v)}
+              aria-pressed={lightsOff}
+              aria-label={lightsOff ? "Bật đèn" : "Tắt đèn"}
+              title={
+                lightsOff
+                  ? "Bật đèn — Thoát chế độ Rạp Chiếu Cổ Phong"
+                  : "Tắt đèn — Bật chế độ Rạp Chiếu Cổ Phong"
+              }
+              className={cn(
+                "min-h-10 border px-3.5 text-sm transition-all duration-300",
+                lightsOff
+                  ? "border-gold-400/80 bg-gold-500/20 text-gold-200 shadow-[0_0_20px_rgba(212,175,55,0.45)] hover:bg-gold-500/30"
+                  : "border-gold-500/35 bg-ink-850/90 text-gold-200 hover:border-gold-400/70 hover:bg-gold-500/15",
+              )}
+            >
+              <AncientLanternIcon active={lightsOff} />
+              <span>
+                {lightsOff ? "Bật đèn · Rạp Chiếu" : "Tắt đèn · Rạp Chiếu"}
+              </span>
+            </Button>
+
+            <DonateTriggerButton config={donateConfig} className="h-10 px-4 text-sm" />
+          </div>
         </div>
-      </div>
+      </MotionConfig>
 
       {/* Thông báo phản hồi tức thì khi bấm Báo lỗi tập phim */}
       {reportBanner && (

@@ -3,7 +3,9 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { VideoPlayer } from "@/components/player/video-player";
-import type { VideoSource } from "@/lib/types";
+import { EpisodeListGrid } from "@/components/movie/episode-part-list";
+import { EpisodeSidebar } from "@/components/player/episode-sidebar";
+import type { Episode, VideoSource } from "@/lib/types";
 
 /**
  * Hồi quy cho hai nút trên trình phát.
@@ -67,6 +69,10 @@ describe("VideoPlayer — nút Mở rộng", () => {
       configurable: true,
       get: () => null,
     });
+    Object.defineProperty(document, "webkitFullscreenElement", {
+      configurable: true,
+      get: () => undefined,
+    });
   });
 
   it("gọi Fullscreen API trên khung phát khi bấm Mở rộng", async () => {
@@ -89,6 +95,7 @@ describe("VideoPlayer — nút Mở rộng", () => {
     await user.click(screen.getByRole("button", { name: "Mở rộng" }));
 
     expect(screen.getByRole("button", { name: "Thu nhỏ" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Thoát toàn màn hình" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Thu nhỏ" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -157,6 +164,37 @@ describe("VideoPlayer — nút Mở rộng", () => {
       );
     });
   });
+
+  it("tự động bật fallback toàn màn hình CSS trên điện thoại (iOS / không hỗ trợ requestFullscreen)", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    renderPlayer();
+
+    await user.click(screen.getByRole("button", { name: "Mở rộng" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Thoát toàn màn hình" })).toBeInTheDocument();
+    });
+
+    const frame = document.querySelector("iframe")?.parentElement;
+    expect(frame?.className).toContain("fixed");
+    expect(frame?.className).toContain("inset-0");
+
+    await user.click(screen.getByRole("button", { name: "Thoát toàn màn hình" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Thoát toàn màn hình" })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Mở rộng" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
 });
 
 describe("VideoPlayer — nút Tắt đèn", () => {
@@ -201,6 +239,110 @@ describe("VideoPlayer — nút Tắt đèn", () => {
     expect(screen.getByRole("button", { name: "Tắt đèn" })).toHaveAttribute(
       "aria-pressed",
       "false",
+    );
+  });
+});
+
+describe("Dropdown chọn phần cho tập có nhiều phần", () => {
+  const multiPartEpisodes: Episode[] = [
+    {
+      id: "ep-1",
+      movieId: "m-1",
+      episodeNumber: 1,
+      title: "Tập 1",
+      slug: "tap-1",
+      releaseDate: null,
+      status: "published",
+      description: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      sources: [
+        {
+          id: "s-1",
+          episodeId: "ep-1",
+          provider: "youtube",
+          sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          label: "Phần 1",
+          priority: 0,
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "s-2",
+          episodeId: "ep-1",
+          provider: "youtube",
+          sourceUrl: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+          label: "Phần 2",
+          priority: 1,
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    },
+    {
+      id: "ep-2",
+      movieId: "m-1",
+      episodeNumber: 2,
+      title: "Tập 2",
+      slug: "tap-2",
+      releaseDate: null,
+      status: "published",
+      description: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      sources: [
+        {
+          id: "s-3",
+          episodeId: "ep-2",
+          provider: "youtube",
+          sourceUrl: "https://www.youtube.com/watch?v=YE7VzlLtp-4",
+          label: "Vietsub",
+          priority: 0,
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    },
+  ];
+
+  it("EpisodeListGrid hiển thị nút dropdown cho tập có nhiều phần và mở danh sách phần", async () => {
+    const user = userEvent.setup();
+    render(
+      <EpisodeListGrid
+        movieSlug="van-kiem"
+        movieTitle="Vấn Kiếm"
+        episodes={multiPartEpisodes}
+      />,
+    );
+
+    const dropdownBtn = screen.getByRole("button", { name: "Chọn phần cho Tập 1" });
+    expect(dropdownBtn).toHaveTextContent("2 phần");
+    expect(screen.queryByRole("button", { name: "Chọn phần cho Tập 2" })).not.toBeInTheDocument();
+
+    await user.click(dropdownBtn);
+    expect(screen.getByRole("link", { name: /Phần 1/i })).toHaveAttribute(
+      "href",
+      "/xem/van-kiem/tap-1?phan=1",
+    );
+    expect(screen.getByRole("link", { name: /Phần 2/i })).toHaveAttribute(
+      "href",
+      "/xem/van-kiem/tap-1?phan=2",
+    );
+  });
+
+  it("EpisodeSidebar hiển thị dropdown phần cạnh tập phim và tự mở cho tập đang phát", () => {
+    render(
+      <EpisodeSidebar
+        movieSlug="van-kiem"
+        movieTitle="Vấn Kiếm"
+        episodes={multiPartEpisodes}
+        currentEpisodeId="ep-1"
+        currentPartIndex={1}
+      />,
+    );
+
+    const sidebarDropdown = screen.getByRole("button", { name: "Xem các phần của Tập 1" });
+    expect(sidebarDropdown).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: /Phần 2/i })).toHaveAttribute(
+      "href",
+      "/xem/van-kiem/tap-1?phan=2",
     );
   });
 });

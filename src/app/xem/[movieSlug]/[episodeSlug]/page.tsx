@@ -16,6 +16,7 @@ export const revalidate = 300;
 
 interface PageProps {
   params: Promise<{ movieSlug: string; episodeSlug: string }>;
+  searchParams: Promise<{ phan?: string; part?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -36,8 +37,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function WatchPage({ params }: PageProps) {
-  const { movieSlug, episodeSlug } = await params;
+export default async function WatchPage({ params, searchParams }: PageProps) {
+  const [{ movieSlug, episodeSlug }, query] = await Promise.all([params, searchParams]);
+  const rawPart = Number(query.phan ?? query.part);
+  const initialPartIndex =
+    Number.isInteger(rawPart) && rawPart >= 1 ? rawPart - 1 : undefined;
   const store = await getPublicStore();
 
   const [result, settings] = await Promise.all([
@@ -57,8 +61,8 @@ export default async function WatchPage({ params }: PageProps) {
     index >= 0 && index < publishedSiblings.length - 1 ? publishedSiblings[index + 1] : null;
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div className="mx-auto max-w-[1400px] px-3 py-4 sm:px-6 sm:py-8">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <Link
           href={`/phim/${movie.slug}`}
           className="inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.14em] text-parchment-300/80 transition-colors hover:text-gold-200"
@@ -116,6 +120,7 @@ export default async function WatchPage({ params }: PageProps) {
             episodeSlug={episode.slug}
             episodeTitle={episode.title}
             donateConfig={settings.donateConfig}
+            initialPartIndex={initialPartIndex}
           />
 
           <CultivationReactions
@@ -150,7 +155,7 @@ export default async function WatchPage({ params }: PageProps) {
                 ? `Ngày phát hành: ${episode.releaseDate}`
                 : "Chưa có ngày phát hành"}
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {previous && (
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/xem/${movie.slug}/${previous.slug}`}>
@@ -178,6 +183,7 @@ export default async function WatchPage({ params }: PageProps) {
           movieTitle={movie.title}
           episodes={publishedSiblings}
           currentEpisodeId={episode.id}
+          currentPartIndex={initialPartIndex ?? 0}
         />
       </div>
     </div>

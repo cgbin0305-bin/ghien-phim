@@ -10,10 +10,11 @@ import { SealStampButton } from "@/components/ui/seal-stamp-button";
 import { MovieCard } from "@/components/movie/movie-card";
 import { BookmarkButton } from "@/components/movie/bookmark-button";
 import { ScrollUnfurlTrigger } from "@/components/movie/scroll-unfurl-modal";
+import { EpisodeListGrid } from "@/components/movie/episode-part-list";
 import { StaggeredMovieGrid } from "@/components/effects/staggered-movie-grid";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { formatDateTime, getTodayKey, getWeekStart } from "@/lib/date";
-import { getEpisodeBadgeNumber, sortEpisodes } from "@/lib/episode-sort";
+import { sortEpisodes } from "@/lib/episode-sort";
 import type { Episode, MovieWithStats } from "@/lib/types";
 
 export const revalidate = 300;
@@ -359,41 +360,11 @@ function EpisodeList({
           {episodes.length} mục đã xuất bản — chọn một tập/phần để xem
         </p>
       </div>
-      <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {episodes.map((episode, index) => {
-          const label = formatEpisodeLabel(episode);
-          const badgeNum = getEpisodeBadgeNumber(episode, index);
-          const partCount = episode.sources.length;
-          return (
-            <li key={episode.id}>
-              <Link
-                href={`/xem/${movie.slug}/${episode.slug}`}
-                className="card-cinematic shine-effect group flex min-h-12 items-center justify-between gap-2.5 rounded-lg border border-ink-700 bg-ink-850/75 px-3.5 py-2.5 text-sm font-medium text-parchment-100 hover:border-gold-500/45 hover:bg-ink-800 hover:text-gold-200"
-              >
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <span className="grid size-7 shrink-0 place-items-center rounded border border-ink-700 bg-ink-900 text-xs tabular-nums text-gold-300 transition-colors group-hover:border-gold-500/50 group-hover:bg-gold-500/15">
-                    {badgeNum}
-                  </span>
-                  <span className="truncate">{label}</span>
-                </span>
-                {partCount > 1 ? (
-                  <span className="shrink-0 rounded-full border border-gold-500/35 bg-gold-500/10 px-2 py-0.5 text-xs text-gold-200">
-                    {partCount} phần
-                  </span>
-                ) : (
-                  <Play
-                    className="size-3.5 shrink-0 text-gold-300 opacity-70 transition-transform duration-200 group-hover:scale-110 group-hover:opacity-100"
-                    aria-hidden="true"
-                  />
-                )}
-                <span className="sr-only">
-                  {label} của {movie.title}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      <EpisodeListGrid
+        movieSlug={movie.slug}
+        movieTitle={movie.title}
+        episodes={episodes}
+      />
     </section>
   );
 }
