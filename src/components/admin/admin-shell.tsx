@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   CalendarRange,
   FileText,
   Film,
@@ -19,6 +20,7 @@ import { logoutAction } from "@/app/admin/login/actions";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Bảng điều khiển", icon: LayoutDashboard, exact: true },
+  { href: "/admin/phan-tich", label: "Phân tích & Link", icon: BarChart3, exact: false },
   { href: "/admin/phim", label: "Phim", icon: Film, exact: false },
   { href: "/admin/the-loai", label: "Thể loại", icon: Tags, exact: false },
   { href: "/admin/lich-chieu", label: "Lịch chiếu", icon: CalendarRange, exact: false },

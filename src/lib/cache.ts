@@ -2,22 +2,24 @@ import "server-only";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/supabase/public";
 import { ttlCacheClear } from "@/lib/data/ttl-cache";
+import { adminCacheClear } from "@/lib/data/admin-cache";
 
 /**
- * Xoá cache của dữ liệu công khai.
+ * Xoá cache của dữ liệu công khai và cache đọc ngắn hạn của Admin.
  *
  * Các trang công khai đọc dữ liệu qua client ẩn danh, dùng Next.js Data
  * Cache (`next.revalidate` + `next.tags`) cho các route tĩnh và cache TTL trong
  * bộ nhớ cho các route động. Khi quản trị viên sửa nội dung ta gọi hàm này
- * để cả hai lớp cache được làm mới ngay lập tức thay vì chờ hết hạn.
+ * để tất cả các lớp cache được làm mới ngay lập tức thay vì chờ hết hạn.
  */
 export function invalidatePublicCache(): void {
   for (const tag of Object.values(CACHE_TAGS)) {
     revalidateTag(tag);
   }
 
-  // Xoá cache TTL trong bộ nhớ.
+  // Xoá cache TTL trong bộ nhớ (cả public lẫn admin).
   ttlCacheClear();
+  adminCacheClear();
 }
 
 /**

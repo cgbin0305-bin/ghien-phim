@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   AlertTriangle,
+  BarChart3,
   CalendarPlus,
   CheckCircle2,
   FilePlus2,
@@ -83,7 +84,8 @@ export default async function AdminDashboardPage() {
         <h2 id="thao-tac-nhanh" className="text-xs font-medium uppercase tracking-[0.18em] text-gold-300/80">
           Thao tác nhanh
         </h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <QuickAction href="/admin/phan-tich" icon={BarChart3} label="Phân tích & Link" />
           <QuickAction href="/admin/phim/new" icon={Film} label="Thêm phim" />
           <QuickAction href="/admin/phim" icon={ListVideo} label="Quản lý tập" />
           <QuickAction href="/admin/the-loai" icon={Tags} label="Quản lý thể loại" />

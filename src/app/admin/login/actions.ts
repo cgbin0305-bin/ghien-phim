@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { clearAdminSessionCache } from "@/lib/auth";
 import { isDemoMode } from "@/lib/env";
 
 const loginSchema = z.object({
@@ -70,6 +71,7 @@ export async function loginAction(
 
 export async function logoutAction() {
   if (isDemoMode) return;
+  clearAdminSessionCache();
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/admin/login");

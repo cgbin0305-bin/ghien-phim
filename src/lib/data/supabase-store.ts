@@ -1271,42 +1271,43 @@ export function createSupabaseStore(client: Db): DataStore {
 
     async getDashboardStats(): Promise<DashboardStats> {
       const now = new Date().toISOString();
-      const [moviesResult, episodesResult, postsResult, scheduleResult, recentMoviesResult, recentPostsResult] =
-        await Promise.all([
-          client.from("movies").select("id", { count: "exact", head: true }),
-          client.from("episodes").select("id", { count: "exact", head: true }),
-          client.from("posts").select("id", { count: "exact", head: true }),
-          client
-            .from("schedule_events")
-            .select("id", { count: "exact", head: true })
-            .gte("scheduled_at", now)
-            .eq("status", "scheduled"),
-          client.from("movies").select("*").order("updated_at", { ascending: false }).limit(5),
-          client.from("posts").select("*").order("updated_at", { ascending: false }).limit(5),
-        ]);
+      const [
+        moviesResult,
+        publishedMoviesResult,
+        episodesResult,
+        publishedEpisodesResult,
+        postsResult,
+        scheduleResult,
+        recentMoviesResult,
+        recentPostsResult,
+      ] = await Promise.all([
+        client.from("movies").select("id", { count: "exact", head: true }),
+        client.from("movies").select("id", { count: "exact", head: true }).eq("status", "published"),
+        client.from("episodes").select("id", { count: "exact", head: true }),
+        client.from("episodes").select("id", { count: "exact", head: true }).eq("status", "published"),
+        client.from("posts").select("id", { count: "exact", head: true }),
+        client
+          .from("schedule_events")
+          .select("id", { count: "exact", head: true })
+          .gte("scheduled_at", now)
+          .eq("status", "scheduled"),
+        client.from("movies").select("*").order("updated_at", { ascending: false }).limit(5),
+        client.from("posts").select(POST_LIST_COLUMNS).order("updated_at", { ascending: false }).limit(5),
+      ]);
 
-      const { count: publishedEpisodeCount } = await client
-        .from("episodes")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "published");
-      const { count: publishedMovieCount } = await client
-        .from("movies")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "published");
-
-      const recentMovies = await hydrateMovies(
-        (recentMoviesResult.data ?? []) as unknown as DbMovieRow[],
-      );
+      const [recentMovies, upcoming] = await Promise.all([
+        hydrateMovies((recentMoviesResult.data ?? []) as unknown as DbMovieRow[]),
+        this.listUpcomingSchedule(5),
+      ]);
       const recentPosts = ((recentPostsResult.data ?? []) as unknown as DbPostRow[]).map((r) =>
         mapPost(r, []),
       );
-      const upcoming = await this.listUpcomingSchedule(5);
 
       return {
         movieCount: moviesResult.count ?? 0,
-        publishedMovieCount: publishedMovieCount ?? 0,
+        publishedMovieCount: publishedMoviesResult.count ?? 0,
         episodeCount: episodesResult.count ?? 0,
-        publishedEpisodeCount: publishedEpisodeCount ?? 0,
+        publishedEpisodeCount: publishedEpisodesResult.count ?? 0,
         postCount: postsResult.count ?? 0,
         upcomingScheduleCount: scheduleResult.count ?? 0,
         recentMovies,

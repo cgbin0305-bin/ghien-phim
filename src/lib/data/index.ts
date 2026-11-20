@@ -23,8 +23,12 @@ export async function getStore(): Promise<DataStore> {
     if (!demoStore) demoStore = createDemoStore();
     return demoStore;
   }
-  const { getSupabaseStore } = await import("@/lib/data/supabase-store");
-  return getSupabaseStore();
+  const [{ getSupabaseStore }, { createCachedAdminStore }] = await Promise.all([
+    import("@/lib/data/supabase-store"),
+    import("@/lib/data/admin-cache"),
+  ]);
+  const rawStore = await getSupabaseStore();
+  return createCachedAdminStore(rawStore);
 }
 
 /**

@@ -1,4 +1,6 @@
 import "server-only";
+import { cache } from "react";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseConfig } from "@/lib/env";
 
@@ -9,26 +11,69 @@ export interface AdminSession {
   role: "admin" | "viewer";
 }
 
+const SESSION_TTL_MS = 45_000;
+
+interface CachedSessionEntry {
+  session: AdminSession | null;
+  expiresAt: number;
+}
+
+const globalAuth = globalThis as typeof globalThis & {
+  __gheienPhimAdminSessionCache?: Map<string, CachedSessionEntry>;
+};
+
+const sessionCache: Map<string, CachedSessionEntry> =
+  (globalAuth.__gheienPhimAdminSessionCache ??= new Map());
+
+/** Xoá cache phiên quản trị (dùng khi đăng xuất hoặc đổi tài khoản). */
+export function clearAdminSessionCache(): void {
+  sessionCache.clear();
+}
+
+async function getAuthCookieFingerprint(): Promise<string | null> {
+  try {
+    const store = await cookies();
+    const authCookies = store
+      .getAll()
+      .filter((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (authCookies.length === 0) return null;
+    return authCookies.map((c) => `${c.name}=${c.value}`).join(";");
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Resolves the current admin session.
  *
- * Returns `null` when:
- *  - Supabase is not configured (demo mode), or
- *  - nobody is signed in, or
- *  - the signed-in user has no `admin` role in `public.profiles`.
- *
- * Every admin page and Server Action calls this function; the UI is never the
- * only line of defence.
+ * Dùng 2 lớp tối ưu để điều hướng trong Admin phản hồi tức thì:
+ *  1. `React.cache(...)` gộp mọi lời gọi trùng trong cùng một lượt render RSC.
+ *  2. Cache bộ nhớ ngắn hạn (45s) gắn chặt với fingerprint cookie phiên hiện tại,
+ *     giúp cắt bỏ 2 vòng gọi mạng `auth.getUser()` + `profiles` (~300–500ms)
+ *     mỗi khi Admin chuyển qua lại giữa các tab quản trị.
  */
-export async function getAdminSession(): Promise<AdminSession | null> {
+export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
   if (!hasSupabaseConfig) return null;
+
+  const fingerprint = await getAuthCookieFingerprint();
+  if (!fingerprint) return null;
+
+  const now = Date.now();
+  const cached = sessionCache.get(fingerprint);
+  if (cached && cached.expiresAt > now) {
+    return cached.session;
+  }
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return null;
+  if (!user) {
+    sessionCache.delete(fingerprint);
+    return null;
+  }
 
   const { data: profile, error } = await supabase
     .from("profiles")
@@ -37,18 +82,32 @@ export async function getAdminSession(): Promise<AdminSession | null> {
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  if (!profile) return null;
+  if (!profile) {
+    sessionCache.set(fingerprint, { session: null, expiresAt: now + 10_000 });
+    return null;
+  }
 
   const role = (profile as { role: string }).role;
-  if (role !== "admin") return null;
+  if (role !== "admin") {
+    sessionCache.set(fingerprint, { session: null, expiresAt: now + 10_000 });
+    return null;
+  }
 
-  return {
+  const session: AdminSession = {
     userId: (profile as { id: string }).id,
     email: (profile as { email: string | null }).email ?? user.email ?? null,
     displayName: (profile as { display_name: string | null }).display_name ?? null,
     role: "admin",
   };
-}
+
+  // Giới hạn kích thước map tránh phình bộ nhớ
+  if (sessionCache.size > 100) {
+    sessionCache.clear();
+  }
+  sessionCache.set(fingerprint, { session, expiresAt: now + SESSION_TTL_MS });
+
+  return session;
+});
 
 /** Throws when there is no admin session. Use at the top of every admin action. */
 export async function requireAdmin(): Promise<AdminSession> {

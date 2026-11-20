@@ -82,7 +82,7 @@ export function createCachedPublicStore(store: DataStore): DataStore {
     const cached = memoize(
       String(entry.name),
       entry.key,
-      original as (...args: unknown[]) => Promise<unknown>,
+      original.bind(store) as (...args: unknown[]) => Promise<unknown>,
       entry.ttl,
     ) as unknown as DataStore[typeof entry.name];
 
