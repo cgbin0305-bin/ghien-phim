@@ -178,7 +178,7 @@ export function SilkMarquee({ movies }: SilkMarqueeProps) {
               <div
                 key={`${movie.id}-${index}`}
                 aria-hidden={isDuplicate ? "true" : undefined}
-                className="silk-marquee-card cultivation-card group relative w-[290px] shrink-0 overflow-hidden rounded-xl border border-gold-500/25 bg-ink-900 shadow-card sm:w-[350px] lg:w-[390px]"
+                className="silk-marquee-card cultivation-card group relative w-[min(82vw,310px)] shrink-0 overflow-hidden rounded-xl border border-gold-500/25 bg-ink-900 shadow-card sm:w-[350px] lg:w-[390px]"
               >
                 <span aria-hidden="true" className="cultivation-border-beam" />
                 <div className="relative aspect-video w-full overflow-hidden bg-ink-850">

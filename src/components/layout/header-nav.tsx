@@ -27,11 +27,7 @@ const NAV_ICONS = {
   "bai-viet": ScrollText,
 } as const;
 
-export function HeaderNav({
-  forcedActive = null,
-}: {
-  forcedActive?: "phim" | "lich-chieu" | "bai-viet" | null;
-}) {
+function useActiveNavKey(forcedActive: "phim" | "lich-chieu" | "bai-viet" | null) {
   const pathname = usePathname() ?? "/";
 
   React.useEffect(() => {
@@ -51,16 +47,20 @@ export function HeaderNav({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const resolveActive = (): NavItem["key"] | null => {
-    if (forcedActive) return forcedActive;
-    if (pathname === "/") return "home";
-    if (pathname.startsWith("/phim") || pathname.startsWith("/xem")) return "phim";
-    if (pathname.startsWith("/lich-chieu")) return "lich-chieu";
-    if (pathname.startsWith("/bai-viet")) return "bai-viet";
-    return null;
-  };
+  if (forcedActive) return forcedActive;
+  if (pathname === "/") return "home" as const;
+  if (pathname.startsWith("/phim") || pathname.startsWith("/xem")) return "phim" as const;
+  if (pathname.startsWith("/lich-chieu")) return "lich-chieu" as const;
+  if (pathname.startsWith("/bai-viet")) return "bai-viet" as const;
+  return null;
+}
 
-  const activeKey = resolveActive();
+export function HeaderNav({
+  forcedActive = null,
+}: {
+  forcedActive?: "phim" | "lich-chieu" | "bai-viet" | null;
+}) {
+  const activeKey = useActiveNavKey(forcedActive);
 
   return (
     <nav aria-label="Điều hướng chính" className="flex items-center gap-0.5 sm:gap-1">
@@ -81,7 +81,7 @@ export function HeaderNav({
           >
             <Icon
               className={cn(
-                "hidden size-3.5 transition-transform duration-300 md:inline-block",
+                "size-3.5 transition-transform duration-300",
                 isActive
                   ? "text-gold-300"
                   : "text-mist-400 group-hover:scale-110 group-hover:text-gold-300",
@@ -108,3 +108,45 @@ export function HeaderNav({
   );
 }
 
+/**
+ * Thanh điều hướng 4 cột dành riêng cho điện thoại:
+ * luôn nằm gọn 100% trong chiều rộng màn hình, không gây tràn ngang.
+ */
+export function MobileHeaderNav({
+  forcedActive = null,
+}: {
+  forcedActive?: "phim" | "lich-chieu" | "bai-viet" | null;
+}) {
+  const activeKey = useActiveNavKey(forcedActive);
+
+  return (
+    <nav
+      aria-label="Điều hướng di động"
+      className="grid grid-cols-4 border-t border-ink-800/80 bg-ink-950/95 px-1.5 py-1 md:hidden"
+    >
+      {NAV_ITEMS.map((item) => {
+        const isActive = activeKey === item.key;
+        const Icon = NAV_ICONS[item.key];
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={isActive ? "page" : undefined}
+            className={cn(
+              "flex flex-col items-center justify-center gap-0.5 rounded-md py-1.5 text-xs font-medium transition-colors",
+              isActive
+                ? "bg-gold-500/12 text-gold-200"
+                : "text-parchment-300/85 hover:text-parchment-100",
+            )}
+          >
+            <Icon
+              className={cn("size-3.5", isActive ? "text-gold-300" : "text-mist-400")}
+              aria-hidden="true"
+            />
+            <span className="truncate">{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

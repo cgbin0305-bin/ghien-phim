@@ -95,7 +95,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </a>
           <DemoBanner />
           <SiteHeader />
-          <main id="main" className="min-h-[60vh]">
+          <main id="main" className="min-h-[60vh] w-full max-w-full overflow-x-clip">
             {children}
           </main>
           <SiteFooter />

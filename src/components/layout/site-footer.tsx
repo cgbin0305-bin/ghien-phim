@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { Mail } from "lucide-react";
 import { getPublicStore } from "@/lib/data";
 import { SITE_TIMEZONE } from "@/lib/env";
@@ -30,7 +30,7 @@ export async function SiteFooter() {
   }
 
   return (
-    <footer className="mt-16 border-t border-ink-700/70 bg-ink-950/60">
+    <footer className="mt-16 w-full max-w-full overflow-x-clip border-t border-ink-700/70 bg-ink-950/60">
       <div className="mx-auto grid max-w-[1400px] gap-10 px-4 py-12 sm:px-6 md:grid-cols-3 md:gap-8">
         <div className="space-y-3">
           <div className="flex items-center gap-2.5">

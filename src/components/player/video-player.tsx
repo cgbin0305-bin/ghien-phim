@@ -588,6 +588,27 @@ export function VideoPlayer({
               </span>
             </Button>
 
+            {active && (
+              <Button
+                asChild
+                variant="outline"
+                size="default"
+                className="min-h-10 border-gold-500/45 bg-ink-850/90 px-3.5 text-sm text-gold-200 hover:border-gold-400 hover:bg-gold-500/15 hover:text-gold-100"
+              >
+                <a
+                  href={active.canonicalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Mở video trực tiếp trên ${active.provider === "facebook" ? "Facebook" : "YouTube"}`}
+                >
+                  <ExternalLink className="size-4" aria-hidden="true" />
+                  <span>
+                    {active.provider === "facebook" ? "Mở trên Facebook" : "Mở trên YouTube"}
+                  </span>
+                </a>
+              </Button>
+            )}
+
             <DonateTriggerButton config={donateConfig} className="h-10 px-4 text-sm" />
           </div>
         </div>

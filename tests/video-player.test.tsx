@@ -345,4 +345,11 @@ describe("Dropdown chọn phần cho tập có nhiều phần", () => {
       "/xem/van-kiem/tap-1?phan=2",
     );
   });
+
+  it("hiển thị nút mở trực tiếp video trên YouTube/Facebook nếu xem trên web bất tiện", () => {
+    renderPlayer();
+    const extLink = screen.getByRole("link", { name: "Mở trên YouTube" });
+    expect(extLink).toHaveAttribute("href", "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    expect(extLink).toHaveAttribute("target", "_blank");
+  });
 });

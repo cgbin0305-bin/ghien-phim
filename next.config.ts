@@ -23,8 +23,8 @@ const csp = [
   "img-src 'self' blob: data: https:",
   "font-src 'self' data:",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
-  // The only two places the player is allowed to frame content from.
-  "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://www.facebook.com https://facebook.com",
+  // The only two places the player is allowed to frame content from (bao gồm subdomain mobile m.facebook.com / web.facebook.com).
+  "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://m.youtube.com https://www.facebook.com https://facebook.com https://m.facebook.com https://web.facebook.com https://*.facebook.com",
   "media-src 'self' https://*.supabase.co",
   "object-src 'none'",
   "base-uri 'self'",
