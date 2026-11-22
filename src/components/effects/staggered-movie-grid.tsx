@@ -63,7 +63,7 @@ export function StaggerMovieRow({
                 delay: delaySeconds,
                 ease: STAGGER_EASE,
               }}
-              className="mist-stagger-item flex flex-col"
+              className="mist-stagger-item flex h-full flex-col"
             >
               {child}
             </motion.div>

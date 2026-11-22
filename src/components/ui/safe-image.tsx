@@ -1,3 +1,6 @@
+"use client";
+
+import * as React from "react";
 import Image from "next/image";
 import { classifyImageSource, normalizeImageUrl } from "@/lib/image-hosts";
 
@@ -15,25 +18,13 @@ interface SafeImageProps {
 }
 
 /**
- * `<Image>` an toàn cho mọi URL ảnh do quản trị viên nhập tay.
+ * `<Image>` an toàn cho mọi URL ảnh do quản trị viên nhập tay hoặc tải lên.
  *
- * `next/image` **ném exception** khi `src` trỏ tới hostname không nằm trong
- * `images.remotePatterns`:
- *
- * > Invalid src prop (https://…) on `next/image`, hostname "…" is not
- * > configured under images in your `next.config.js`
- *
- * Lỗi này làm sập cả trang (React error boundary), chứ không phải ảnh hỏng
- * đơn lẻ. Vì URL poster/backdrop/cover nhập tay có thể nằm ở bất kỳ host nào
- * (CDN riêng, GitHub Raw, Imgur…), `SafeImage` kiểm tra host trước:
- *
- *  - host được phép trong `remotePatterns` -> `next/image` (tối ưu AVIF/WebP).
- *  - host lạ -> thẻ `<img>` thuần, không crash.
- *  - đường dẫn nội bộ -> `next/image` (đi qua `images.localPatterns`).
- *
- * Trước khi phân loại, `src` được chuẩn hoá: link **trang quản trị** Supabase
- * (`supabase.com/dashboard/...?preview=file.png`) được chuyển thành URL file
- * công khai thật. Nếu không, ảnh vừa không hiện vừa làm sập trang.
+ * - URL ngoài (`external`): render thẻ `<img>` thuần để không crash `next/image`.
+ * - URL Supabase Storage (`remote`): dùng `unoptimized` để tải thẳng từ CDN
+ *   Supabase (tránh lỗi 402/502 hoặc timeout từ bộ tối ưu `/_next/image`), kèm
+ *   tự động fallback sang `<img>` thuần nếu có lỗi phát sinh.
+ * - Đường dẫn nội bộ (`local`): đi qua `next/image` như bình thường.
  */
 export function SafeImage({
   src,
@@ -48,8 +39,13 @@ export function SafeImage({
 }: SafeImageProps) {
   const normalized = normalizeImageUrl(src);
   const kind = classifyImageSource(normalized);
+  const [fallbackDirect, setFallbackDirect] = React.useState(false);
 
-  if (kind === "external") {
+  React.useEffect(() => {
+    setFallbackDirect(false);
+  }, [normalized]);
+
+  if (kind === "external" || fallbackDirect) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -77,10 +73,14 @@ export function SafeImage({
       height={fill ? undefined : height}
       sizes={sizes}
       priority={priority}
+      unoptimized={kind === "remote"}
       loading={priority ? "eager" : "lazy"}
       decoding="async"
       fetchPriority={priority ? "high" : "auto"}
-      onError={onError}
+      onError={() => {
+        setFallbackDirect(true);
+        onError?.();
+      }}
       className={className}
     />
   );

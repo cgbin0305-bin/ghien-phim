@@ -54,7 +54,7 @@ export function CultivationMovieCard({
         whileHover={{ scale: 1.03, y: -6 }}
         transition={{ type: "spring", stiffness: 300, damping: 22 }}
         className={cn(
-          "cultivation-card group relative flex flex-col overflow-hidden rounded-xl border border-gold-500/25 bg-ink-900/75 p-2.5 shadow-card hover:border-gold-400/60 hover:bg-ink-850/95",
+          "cultivation-card group relative flex h-full flex-col overflow-hidden rounded-xl border border-gold-500/25 bg-ink-900/75 p-2.5 shadow-card hover:border-gold-400/60 hover:bg-ink-850/95",
           className,
         )}
       >
@@ -166,19 +166,19 @@ export function CultivationMovieCard({
           />
         </div>
 
-        <div className="relative z-10 mt-3 flex flex-1 flex-col gap-1 px-0.5">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="min-w-0 flex-1 font-serif text-lg font-semibold leading-snug text-parchment-100 transition-colors group-hover:text-gold-200">
-              <PrefetchLink href={`/phim/${movie.slug}`} className="link-underline">
-                {movie.title}
-              </PrefetchLink>
-            </h3>
+        <div className="relative z-10 mt-3 flex flex-1 flex-col gap-1.5 px-0.5">
+          <h3 className="font-serif text-base font-semibold leading-snug text-parchment-100 transition-colors group-hover:text-gold-200 sm:text-lg">
+            <PrefetchLink href={`/phim/${movie.slug}`} className="link-underline">
+              {movie.title}
+            </PrefetchLink>
+          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <p className="min-w-0 flex-1 truncate text-xs text-mist-400">
+              {movie.year ?? "—"}
+              {movie.originalTitle ? ` · ${movie.originalTitle}` : ""}
+            </p>
             <ScrollUnfurlTrigger movie={movie} label="Chi tiết" className="shrink-0" />
           </div>
-          <p className="truncate text-xs text-mist-400">
-            {movie.year ?? "—"}
-            {movie.originalTitle ? ` · ${movie.originalTitle}` : ""}
-          </p>
 
           {showProgress && (
             <div className="mt-auto pt-2.5">
