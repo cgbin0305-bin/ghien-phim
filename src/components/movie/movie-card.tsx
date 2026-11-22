@@ -49,28 +49,20 @@ export function CultivationMovieCard({
   const progress = total > 0 ? Math.min(100, Math.round((published / total) * 100)) : 0;
 
   return (
-    <MotionConfig reducedMotion="never">
+    <MotionConfig reducedMotion="user">
       <motion.article
-        whileHover={{ scale: 1.03, y: -6 }}
-        transition={{ type: "spring", stiffness: 300, damping: 22 }}
+        whileHover={{ scale: 1.02, y: -4 }}
+        transition={{ type: "spring", stiffness: 320, damping: 26 }}
         className={cn(
-          "cultivation-card group relative flex h-full flex-col overflow-hidden rounded-xl border border-gold-500/25 bg-ink-900/75 p-2.5 shadow-card hover:border-gold-400/60 hover:bg-ink-850/95",
+          "cultivation-card group relative flex h-full flex-col overflow-hidden rounded-xl border border-ink-700 bg-ink-800/85 p-2.5 shadow-card transition-colors duration-300 hover:border-gold-400/55 hover:bg-ink-800 hover:shadow-[0_14px_32px_-12px_rgba(0,0,0,0.85),0_0_24px_-6px_rgba(244,184,96,0.22)]",
           className,
         )}
       >
-        {/* Lớp conic-gradient xoay 360deg liên tục (3s linear infinite) dưới viền thẻ, hiện sáng khi hover */}
+        {/* Viền sáng đèn lồng hổ phách tinh tế khi hover/focus */}
         <div
           aria-hidden="true"
-          className="cultivation-border-beam pointer-events-none absolute inset-0 z-20 rounded-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        >
-          <div
-            className="animate-border-spin absolute left-1/2 top-1/2 aspect-square w-[230%]"
-            style={{
-              background:
-                "conic-gradient(from 0deg, transparent 0deg 260deg, rgba(200, 62, 55, 0.65) 295deg, #D4AF37 340deg, #FFF8DC 355deg, #D4AF37 360deg)",
-            }}
-          />
-        </div>
+          className="cultivation-border-beam pointer-events-none absolute inset-0 z-20 rounded-xl ring-1 ring-inset ring-gold-400/45 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
+        />
 
         <PrefetchLink
           href={`/phim/${movie.slug}`}

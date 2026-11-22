@@ -55,6 +55,11 @@ const CACHEABLE: Array<{
     },
     { name: "listEpisodes", key: (args) => `eps:${args[0]}`, ttl: TTL.catalog },
     {
+      name: "getEpisodeBySlug",
+      key: (args) => `ep:${args[0]}:${args[1]}`,
+      ttl: TTL.catalog,
+    },
+    {
       name: "getLatestPublishedEpisode",
       key: (args) => `latest:${args[0]}`,
       ttl: TTL.catalog,

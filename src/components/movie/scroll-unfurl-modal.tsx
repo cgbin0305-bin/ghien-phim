@@ -99,7 +99,7 @@ export function ScrollUnfurlModal({ movie, open, onClose }: ScrollUnfurlModalPro
     : `/phim/${movie.slug}`;
 
   const modalTree = (
-    <MotionConfig reducedMotion="never">
+    <MotionConfig reducedMotion="user">
       <AnimatePresence>
         {open && (
           <div

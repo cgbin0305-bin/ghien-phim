@@ -23,7 +23,7 @@ const sans = Be_Vietnam_Pro({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#0B0C10",
+  themeColor: "#0D1321",
   width: "device-width",
   initialScale: 1,
 };

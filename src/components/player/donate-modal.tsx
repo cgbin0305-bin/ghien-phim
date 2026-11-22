@@ -98,7 +98,7 @@ export function DonateModal({
     typeof navigator !== "undefined" && /jsdom/i.test(navigator.userAgent || "");
 
   const modalNode = (
-    <MotionConfig reducedMotion="never">
+    <MotionConfig reducedMotion="user">
       <AnimatePresence>
         {open && (
           <div
@@ -329,7 +329,7 @@ export function DonateTriggerButton({
   };
 
   return (
-    <MotionConfig reducedMotion="never">
+    <MotionConfig reducedMotion="user">
       <motion.button
         type="button"
         onClick={handleOpen}

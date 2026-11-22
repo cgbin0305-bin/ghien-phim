@@ -31,7 +31,7 @@ export function StaggerMovieRow({
   const hasIntersectionObserver = typeof IntersectionObserver !== "undefined";
 
   return (
-    <MotionConfig reducedMotion="never">
+    <MotionConfig reducedMotion="user">
       <div
         data-testid="staggered-movie-grid"
         className={cn(

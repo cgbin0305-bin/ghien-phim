@@ -63,7 +63,7 @@ export function CinemaPlayerWrapper({
     typeof navigator !== "undefined" && /jsdom/i.test(navigator.userAgent || "");
 
   return (
-    <MotionConfig reducedMotion="never">
+    <MotionConfig reducedMotion="user">
       <div className={cn("cinema-wrapper relative space-y-3", className)}>
         <AnimatePresence>
           {isDimmed && (

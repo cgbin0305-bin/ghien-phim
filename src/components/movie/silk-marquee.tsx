@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Play, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
+import { ChevronLeft, ChevronRight, Play, Sparkles } from "lucide-react";
 import type { MovieWithStats } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { SafeImage } from "@/components/ui/safe-image";
-import { SealStampButton } from "@/components/ui/seal-stamp-button";
 import { ScrollUnfurlTrigger } from "@/components/movie/scroll-unfurl-modal";
-import { AmbientParticles } from "@/components/effects/ambient-particles";
+import { cn } from "@/lib/utils";
 
 interface SilkMarqueeProps {
   movies: MovieWithStats[];
@@ -19,18 +20,29 @@ const RELEASE_LABELS: Record<MovieWithStats["releaseStatus"], string> = {
   completed: "Hoàn thành",
 };
 
+const slideVariants = {
+  enter: (direction: number) => ({
+    opacity: 0,
+    x: direction >= 0 ? 56 : -56,
+  }),
+  center: {
+    opacity: 1,
+    x: 0,
+  },
+  exit: (direction: number) => ({
+    opacity: 0,
+    x: direction >= 0 ? -56 : 56,
+  }),
+};
+
+type HoverZone = "left" | "right" | null;
+
 /**
- * "Tuyệt Phẩm Cổ Trang & Tiên Hiệp" — Infinite Silk Marquee
+ * Đêm Đèn Lồng Giấy Gió — First-viewport Hero Showcase
  *
- * - Khi chỉ có 1 phim (`uniqueMovies.length === 1`): hiển thị 1 thẻ đứng im.
- * - Khi có từ 2 phim trở lên (`uniqueMovies.length >= 2`):
- *   1. Lặp bội số nguyên của `uniqueMovies` thành `baseTrack` đủ tối thiểu 6 thẻ
- *      (`>= 2460px`) để nửa sau của dải luôn phủ kín màn hình lớn khi nửa đầu
- *      đã trượt hết sang trái (không bao giờ hở khoảng trống bên phải).
- *   2. Nhân đôi `[...baseTrack, ...baseTrack]` và đặt `margin-right: 20px` đều
- *      trên mọi thẻ (không dùng `gap` hay `padding-x` trên track) để vị trí
- *      `-50%` trùng khớp tuyệt đối `0.00px` với `0%`, tạo vòng lặp vô tận không
- *      giật và không bao giờ dừng.
+ * Đặt bộ phim tiêu điểm vào trung tâm với viền sáng hổ phách ấm trên nền
+ * đêm chàm tĩnh lặng. Rê chuột vào vùng mép trái hoặc mép phải của Hero
+ * để trượt sang bộ phim trước/tiếp theo mà không che nút hay ảnh phim.
  */
 export function SilkMarquee({ movies }: SilkMarqueeProps) {
   const uniqueMovies = React.useMemo(() => {
@@ -45,222 +57,259 @@ export function SilkMarquee({ movies }: SilkMarqueeProps) {
     return list;
   }, [movies]);
 
-  const isSingle = uniqueMovies.length === 1;
+  const featuredList = React.useMemo(() => uniqueMovies.slice(0, 6), [uniqueMovies]);
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [direction, setDirection] = React.useState(1);
+  const [hoverZone, setHoverZone] = React.useState<HoverZone>(null);
+  const hoverZoneRef = React.useRef<HoverZone>(null);
 
-  // Xây dựng nửa chu kỳ cơ sở (`baseTrack`) có độ dài là bội số nguyên của
-  // `uniqueMovies.length` và >= 6 thẻ để luôn rộng hơn màn hình (tránh khoảng trống).
-  const baseTrack = React.useMemo(() => {
-    if (uniqueMovies.length === 0) return [];
-    if (uniqueMovies.length === 1) return uniqueMovies;
-    const minCards = 6;
-    const repeatCount = Math.max(1, Math.ceil(minCards / uniqueMovies.length));
-    const track: MovieWithStats[] = [];
-    for (let i = 0; i < repeatCount; i += 1) {
-      track.push(...uniqueMovies);
+  const totalItems = featuredList.length;
+
+  const stepBy = React.useCallback(
+    (delta: -1 | 1) => {
+      if (totalItems <= 1) return;
+      setDirection(delta);
+      setActiveIndex((prev) => (prev + delta + totalItems) % totalItems);
+    },
+    [totalItems],
+  );
+
+  // Nếu giữ chuột trong vùng mép trái/phải, tự động trượt tiếp mỗi 1.8s
+  React.useEffect(() => {
+    if (!hoverZone || totalItems <= 1) return;
+    const delta = hoverZone === "left" ? -1 : 1;
+    const timer = window.setInterval(() => {
+      stepBy(delta);
+    }, 1800);
+    return () => window.clearInterval(timer);
+  }, [hoverZone, totalItems, stepBy]);
+
+  if (featuredList.length === 0) return null;
+
+  const activeMovie = featuredList[activeIndex] ?? featuredList[0]!;
+  const heroImage = activeMovie.backdropUrl ?? activeMovie.posterUrl;
+  const published = activeMovie.publishedEpisodeCount;
+  const total = activeMovie.episodeCount;
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    if (totalItems <= 1) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = (e.clientX - rect.left) / rect.width;
+
+    // 14% mép trái và 14% mép phải là vùng cảm ứng trượt
+    const nextZone: HoverZone = ratio <= 0.14 ? "left" : ratio >= 0.86 ? "right" : null;
+
+    if (nextZone !== hoverZoneRef.current) {
+      hoverZoneRef.current = nextZone;
+      setHoverZone(nextZone);
+      if (nextZone === "left") stepBy(-1);
+      else if (nextZone === "right") stepBy(1);
     }
-    return track;
-  }, [uniqueMovies]);
+  };
 
-  if (baseTrack.length === 0) return null;
+  const handleMouseLeave = () => {
+    hoverZoneRef.current = null;
+    setHoverZone(null);
+  };
 
-  // Nhân đôi đúng 2 nửa giống hệt nhau để dịch chuyển 0% -> -50% khớp 100% theo vòng lặp vô tận
-  const marqueeItems = isSingle ? baseTrack : [...baseTrack, ...baseTrack];
-  // Tốc độ đồng đều ~4s mỗi thẻ
-  const durationSeconds = Math.max(20, baseTrack.length * 4);
+  const selectIndex = (idx: number) => {
+    if (idx === activeIndex) return;
+    setDirection(idx > activeIndex ? 1 : -1);
+    setActiveIndex(idx);
+  };
 
   return (
-    <section
-      aria-labelledby="hero-title"
-      className="relative isolate overflow-hidden border-b border-ink-700/70 bg-gradient-to-b from-ink-900/70 via-ink-950 to-ink-950 py-10 sm:py-14"
-    >
-      <style>{`
-        @keyframes forceSilkMarqueeLeft {
-          0% {
-            transform: translate3d(0, 0, 0);
-          }
-          100% {
-            transform: translate3d(-50%, 0, 0);
-          }
-        }
-        .silk-marquee-track {
-          display: flex;
-          width: max-content;
-          padding: 0;
-          gap: 0;
-          animation-name: forceSilkMarqueeLeft !important;
-          animation-duration: ${durationSeconds}s !important;
-          animation-timing-function: linear !important;
-          animation-iteration-count: infinite !important;
-          animation-direction: normal !important;
-          animation-fill-mode: none !important;
-          animation-play-state: running !important;
-          will-change: transform;
-        }
-        .silk-marquee-wrapper:hover .silk-marquee-track,
-        .silk-marquee-wrapper:focus-within .silk-marquee-track {
-          animation-play-state: paused !important;
-        }
-        .silk-marquee-card {
-          margin-right: 20px;
-          transition:
-            transform 0.38s cubic-bezier(0.22, 1, 0.36, 1) !important,
-            opacity 0.32s ease !important,
-            border-color 0.32s ease !important,
-            box-shadow 0.38s cubic-bezier(0.22, 1, 0.36, 1) !important;
-          will-change: transform, opacity;
-        }
-        .silk-marquee-wrapper:hover .silk-marquee-track .silk-marquee-card {
-          opacity: 0.5;
-        }
-        .silk-marquee-wrapper:hover .silk-marquee-card:hover,
-        .silk-marquee-wrapper .silk-marquee-card:focus-within {
-          opacity: 1 !important;
-          transform: translate3d(0, -6px, 0) scale(1.08) !important;
-          border-color: #D4AF37 !important;
-          box-shadow:
-            0 20px 44px -12px rgba(0, 0, 0, 0.92),
-            0 0 28px -2px rgba(212, 175, 55, 0.55) !important;
-          z-index: 30;
-        }
-      `}</style>
-
-      {/* Quầng sáng nền cổ phong */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(ellipse_70%_60%_at_50%_0%,rgba(212,175,55,0.14),transparent_70%)]"
-      />
-
-      {/* Animation 1: Lá Phong / Hoa Đào Rơi & Đom Đóm (Ambient Particles Canvas) */}
-      <AmbientParticles />
-
-      <div className="relative z-20 mx-auto max-w-[1400px] px-4 sm:px-6">
-        <div className="text-shadow-hero flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="mb-2.5 flex flex-wrap items-center gap-2">
-              <span className="seal-stamp rounded px-2 py-0.5 font-serif text-xs font-semibold tracking-widest">
-                御覽 · TINH HOA CỔ TRANG
-              </span>
-              <Badge variant="gold">
-                <Sparkles className="size-3" aria-hidden="true" />
-                Tuyển tập nổi bật
-              </Badge>
-            </div>
-            <h1
-              id="hero-title"
-              className="font-serif text-3xl font-bold tracking-tight text-parchment-100 sm:text-4xl lg:text-5xl"
-            >
-              Tuyệt Phẩm Cổ Trang &amp; Tiên Hiệp
-            </h1>
-          </div>
-          <p className="max-w-md text-xs leading-relaxed text-parchment-300/85 sm:text-right sm:text-sm">
-            {isSingle
-              ? "Rê chuột vào thẻ phim để khám phá chi tiết và thưởng thức ngay."
-              : "Rê chuột vào dải lụa để dừng chuyển động và khám phá nhanh từng bộ phim nổi bật."}
-          </p>
-        </div>
-      </div>
-
-      {/* Dải lụa: đứng im khi chỉ có 1 phim, trượt ngang theo vòng lặp vô tận khi có từ 2 phim trở lên */}
-      <div
-        className={
-          isSingle
-            ? "silk-marquee-wrapper relative z-20 mx-auto mt-7 max-w-[1400px] px-4 py-5 sm:px-6"
-            : "silk-marquee-wrapper silk-marquee-mask relative z-20 mt-7 overflow-hidden py-5"
-        }
+    <MotionConfig reducedMotion="user">
+      <section
+        aria-labelledby="hero-title"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="relative isolate overflow-hidden border-b border-ink-700/80 bg-ink-900 py-8 sm:py-12"
       >
-        <div className={isSingle ? "flex justify-start" : "silk-marquee-track"}>
-          {marqueeItems.map((movie, index) => {
-            const isDuplicate = !isSingle && index >= uniqueMovies.length;
-            const imageSrc = movie.backdropUrl ?? movie.posterUrl;
-            const published = movie.publishedEpisodeCount;
+        {/* Quầng sáng đèn lồng hổ phách nhẹ phía sau khung hình tiêu điểm */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_55%_60%_at_74%_42%,rgba(244,184,96,0.12),transparent_68%),radial-gradient(ellipse_60%_50%_at_20%_10%,rgba(28,39,66,0.55),transparent_70%)]"
+        />
 
-            return (
-              <div
-                key={`${movie.id}-${index}`}
-                aria-hidden={isDuplicate ? "true" : undefined}
-                className="silk-marquee-card cultivation-card group relative w-[min(82vw,310px)] shrink-0 overflow-hidden rounded-xl border border-gold-500/25 bg-ink-900 shadow-card sm:w-[350px] lg:w-[390px]"
+        {/* Hiệu ứng ánh sáng vùng mép trái / phải (chỉ hiển thị thị giác, không chặn click) */}
+        {totalItems > 1 && (
+          <>
+            <div
+              aria-hidden="true"
+              className={cn(
+                "pointer-events-none absolute inset-y-0 left-0 z-20 flex w-[14%] items-center justify-start bg-gradient-to-r from-gold-400/12 via-ink-950/25 to-transparent pl-3 transition-opacity duration-200 sm:pl-5",
+                hoverZone === "left" ? "opacity-100" : "opacity-0",
+              )}
+            >
+              <span className="grid size-9 place-items-center rounded-full border border-gold-400/60 bg-ink-900/90 text-gold-300 shadow-[0_0_20px_-4px_rgba(244,184,96,0.45)] backdrop-blur-sm">
+                <ChevronLeft className="size-5" />
+              </span>
+            </div>
+
+            <div
+              aria-hidden="true"
+              className={cn(
+                "pointer-events-none absolute inset-y-0 right-0 z-20 flex w-[14%] items-center justify-end bg-gradient-to-l from-gold-400/12 via-ink-950/25 to-transparent pr-3 transition-opacity duration-200 sm:pr-5",
+                hoverZone === "right" ? "opacity-100" : "opacity-0",
+              )}
+            >
+              <span className="grid size-9 place-items-center rounded-full border border-gold-400/60 bg-ink-900/90 text-gold-300 shadow-[0_0_20px_-4px_rgba(244,184,96,0.45)] backdrop-blur-sm">
+                <ChevronRight className="size-5" />
+              </span>
+            </div>
+          </>
+        )}
+
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6">
+          <div className="overflow-hidden">
+            <AnimatePresence mode="wait" custom={direction} initial={false}>
+              <motion.div
+                key={activeMovie.id}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+                className="grid items-center gap-8 lg:grid-cols-12 lg:gap-10"
               >
-                <span aria-hidden="true" className="cultivation-border-beam" />
-                <div className="relative aspect-video w-full overflow-hidden bg-ink-850">
-                  {imageSrc ? (
-                    <SafeImage
-                      src={imageSrc}
-                      alt={isDuplicate ? "" : movie.title}
-                      fill
-                      priority={index < 4}
-                      sizes="(max-width: 640px) 290px, 390px"
-                      className="cultivation-poster-img object-cover"
-                    />
-                  ) : (
-                    <div className="grid h-full place-items-center bg-gradient-to-br from-ink-800 to-ink-900 p-4 text-center">
-                      <span className="font-serif text-base text-parchment-200">{movie.title}</span>
-                    </div>
-                  )}
-
-                  {/* Lớp phủ chuyển sắc làm nổi chữ và nút Xem Ngay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/45 to-transparent" />
-
-                  <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
-                    {movie.isFeatured && (
-                      <Badge variant="gold" className="backdrop-blur-md">
-                        Đề cử
-                      </Badge>
-                    )}
+                {/* Cột trái: Thông tin phim tiêu điểm & CTA */}
+                <div className="space-y-5 lg:col-span-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="gold">
+                      <Sparkles className="size-3" aria-hidden="true" />
+                      Tiêu điểm đêm nay
+                    </Badge>
                     <Badge
                       variant={
-                        movie.releaseStatus === "airing"
+                        activeMovie.releaseStatus === "airing"
                           ? "jade"
-                          : movie.releaseStatus === "upcoming"
+                          : activeMovie.releaseStatus === "upcoming"
                             ? "gold"
                             : "outline"
                       }
-                      className="backdrop-blur-md"
                     >
-                      {RELEASE_LABELS[movie.releaseStatus]}
+                      {RELEASE_LABELS[activeMovie.releaseStatus]}
                     </Badge>
+                    {published > 0 && (
+                      <span className="rounded-md border border-ink-700 bg-ink-800 px-2.5 py-0.5 text-xs font-medium tabular-nums text-parchment-200">
+                        {total > 0 ? `Tập ${published}/${total}` : `${published} tập`} · Vietsub
+                      </span>
+                    )}
                   </div>
 
-                  {published > 0 && (
-                    <span className="absolute right-3 top-3 rounded-md border border-gold-500/35 bg-ink-950/85 px-2 py-0.5 text-xs font-medium text-gold-200 backdrop-blur-md">
-                      {published} tập
-                    </span>
+                  <div>
+                    <h1
+                      id="hero-title"
+                      className="font-serif text-3xl font-bold tracking-tight text-parchment-100 sm:text-4xl lg:text-5xl"
+                    >
+                      {activeMovie.title}
+                    </h1>
+                    {activeMovie.originalTitle && (
+                      <p className="mt-1.5 text-sm text-mist-400">
+                        {activeMovie.originalTitle}
+                        {activeMovie.year ? ` · ${activeMovie.year}` : ""}
+                        {activeMovie.country ? ` · ${activeMovie.country}` : ""}
+                      </p>
+                    )}
+                  </div>
+
+                  {activeMovie.synopsis && (
+                    <p className="line-clamp-3 max-w-xl text-sm leading-relaxed text-mist-300 sm:text-base">
+                      {activeMovie.synopsis}
+                    </p>
                   )}
 
-                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-4">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-serif text-lg font-bold leading-snug text-parchment-100 transition-colors group-hover:text-gold-200 sm:text-xl">
-                        {movie.title}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-parchment-300/85">
-                        {movie.originalTitle ?? movie.country ?? "Trung Quốc"}
-                        {movie.year ? ` · ${movie.year}` : ""}
-                      </p>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <ScrollUnfurlTrigger
-                        movie={movie}
-                        label="Chi Tiết"
-                        tabIndex={isDuplicate ? -1 : 0}
-                        className="py-2"
-                      />
-                      <SealStampButton
-                        href={`/phim/${movie.slug}`}
-                        tabIndex={isDuplicate ? -1 : 0}
-                        variant="cinnabar"
-                        className="px-3.5 py-2 text-xs"
-                      >
-                        <Play className="size-3.5 fill-current" aria-hidden="true" />
-                        <span>Xem Ngay</span>
-                      </SealStampButton>
-                    </div>
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <Link
+                      href={`/phim/${activeMovie.slug}`}
+                      className="inline-flex items-center gap-2 rounded-lg bg-gold-400 px-5 py-2.5 text-sm font-semibold text-ink-950 shadow-[0_0_24px_-4px_rgba(244,184,96,0.45)] transition-all duration-200 hover:bg-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
+                    >
+                      <Play className="size-4 fill-current" aria-hidden="true" />
+                      <span>Xem ngay</span>
+                    </Link>
+                    <ScrollUnfurlTrigger
+                      movie={activeMovie}
+                      label="Chi tiết"
+                      className="rounded-lg border border-ink-700 bg-ink-800 px-4 py-2.5 text-sm font-medium text-parchment-100 transition-colors hover:border-gold-400/50 hover:text-gold-300"
+                    />
                   </div>
                 </div>
-              </div>
-            );
-          })}
+
+                {/* Cột phải: Khung phim viền sáng đèn lồng hổ phách */}
+                <div className="lg:col-span-6">
+                  <Link
+                    href={`/phim/${activeMovie.slug}`}
+                    className="group relative block aspect-video w-full overflow-hidden rounded-xl border border-gold-400/50 bg-ink-850 shadow-[0_20px_50px_-16px_rgba(0,0,0,0.85),0_0_36px_-10px_rgba(244,184,96,0.28)] transition-all duration-300 hover:border-gold-300/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+                  >
+                    {heroImage ? (
+                      <SafeImage
+                        src={heroImage}
+                        alt={activeMovie.title}
+                        fill
+                        priority
+                        sizes="(max-width: 1024px) 100vw, 680px"
+                        className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                      <div className="grid h-full place-items-center bg-gradient-to-br from-ink-800 to-ink-950 p-6 text-center">
+                        <span className="font-serif text-xl text-parchment-200">
+                          {activeMovie.title}
+                        </span>
+                      </div>
+                    )}
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950/75 via-transparent to-transparent" />
+                    <div className="pointer-events-none absolute bottom-3 left-4 right-4 flex items-center justify-between text-xs text-parchment-200">
+                      <span className="truncate font-medium">
+                        {activeMovie.genres
+                          .map((g) => g.name)
+                          .slice(0, 3)
+                          .join(" · ")}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/50 bg-ink-950/80 px-2.5 py-1 text-gold-300 backdrop-blur-sm">
+                        <Play className="size-3 fill-current" aria-hidden="true" />
+                        Phát ngay
+                      </span>
+                    </div>
+                  </Link>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Dải chọn nhanh các phim tiêu điểm */}
+          {totalItems > 1 && (
+            <div className="mt-7 flex items-center gap-2.5 overflow-x-auto pb-1">
+              {featuredList.map((m, idx) => {
+                const isActive = idx === activeIndex;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => selectIndex(idx)}
+                    aria-pressed={isActive}
+                    className={cn(
+                      "flex shrink-0 cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400",
+                      isActive
+                        ? "border-gold-400/70 bg-ink-800 text-parchment-100 shadow-[0_0_20px_-6px_rgba(244,184,96,0.3)]"
+                        : "border-ink-700 bg-ink-850/70 text-mist-300 hover:border-ink-600 hover:bg-ink-800 hover:text-parchment-100",
+                    )}
+                  >
+                    <span className="text-xs font-semibold tabular-nums text-gold-400">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <span className="max-w-[160px] truncate text-xs font-medium sm:text-sm">
+                      {m.title}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
-      </div>
-    </section>
+      </section>
+    </MotionConfig>
   );
 }

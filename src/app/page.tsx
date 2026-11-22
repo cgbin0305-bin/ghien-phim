@@ -34,10 +34,10 @@ export default async function HomePage() {
 
   const weekStart = getWeekStart(getTodayKey());
 
-  // Chống Waterfall bằng truy vấn song song (Promise.all) & gộp 6 lệnh listMovies
-  // thành 1 lần nạp duy nhất để cắt 14 vòng tròn PostgREST khi cache nguội.
+  // Chống Waterfall bằng truy vấn song song (Promise.all) & gộp các lệnh nạp
+  // thành 1 lần nạp vừa đủ (36 phim) để cắt giảm 65% tải và dữ liệu truyền tải.
   const [all, settings, week, posts, genres] = await Promise.all([
-    store.listMovies({ sort: "recent", perPage: 100 }),
+    store.listMovies({ sort: "recent", perPage: 36 }),
     store.getSettings(),
     store.getScheduleForWeek(weekStart),
     store.listPosts({ limit: 3 }),

@@ -175,7 +175,14 @@ function mapSource(row: DbSourceRow): VideoSource {
   };
 }
 
-function mapSchedule(row: DbScheduleRow, movie?: Movie | null, episode?: Episode | null): ScheduleEvent {
+type ScheduleMovie = Pick<Movie, "id" | "slug" | "title" | "posterUrl">;
+type ScheduleEpisode = Pick<Episode, "id" | "slug" | "title" | "episodeNumber" | "status">;
+
+function mapSchedule(
+  row: DbScheduleRow,
+  movie?: ScheduleMovie | null,
+  episode?: ScheduleEpisode | null,
+): ScheduleEvent {
   return {
     id: row.id,
     movieId: row.movie_id,
@@ -774,7 +781,7 @@ export function createSupabaseStore(client: Db): DataStore {
     },
 
     async getMovieBySlug(slug) {
-      const { data, error } = await client.from("movies").select("*").eq("slug", slug).maybeSingle();
+      const { data, error } = await client.from("movies").select(MOVIE_COLUMNS).eq("slug", slug).maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return null;
       const [movie] = await hydrateMovies([data as unknown as DbMovieRow]);
@@ -783,7 +790,7 @@ export function createSupabaseStore(client: Db): DataStore {
 
     async getMovieById(id) {
       if (!isUuid(id)) return null;
-      const { data, error } = await client.from("movies").select("*").eq("id", id).maybeSingle();
+      const { data, error } = await client.from("movies").select(MOVIE_COLUMNS).eq("id", id).maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return null;
       const [movie] = await hydrateMovies([data as unknown as DbMovieRow]);
@@ -795,7 +802,7 @@ export function createSupabaseStore(client: Db): DataStore {
       if (genreIds.length === 0) {
         const { data } = await client
           .from("movies")
-          .select("*")
+          .select(MOVIE_COLUMNS)
           .eq("status", "published")
           .neq("id", movie.id)
           .order("updated_at", { ascending: false })
@@ -814,7 +821,7 @@ export function createSupabaseStore(client: Db): DataStore {
 
       const { data } = await client
         .from("movies")
-        .select("*")
+        .select(MOVIE_COLUMNS)
         .in("id", candidateIds)
         .eq("status", "published")
         .limit(limit * 2);
@@ -828,7 +835,7 @@ export function createSupabaseStore(client: Db): DataStore {
     },
 
     async listAllMoviesForAdmin() {
-      const { data, error } = await client.from("movies").select("*").order("sort_order", { ascending: true });
+      const { data, error } = await client.from("movies").select(MOVIE_COLUMNS).order("sort_order", { ascending: true });
       if (error) throw new Error(error.message);
       return hydrateMovies((data ?? []) as unknown as DbMovieRow[]);
     },
@@ -916,24 +923,49 @@ export function createSupabaseStore(client: Db): DataStore {
       // lọc ở đây sẽ cho phép xem tập nháp qua URL trực tiếp.
       const { data: movieRow, error: movieError } = await client
         .from("movies")
-        .select("*")
+        .select(MOVIE_COLUMNS)
         .eq("slug", movieSlug)
         .eq("status", "published")
         .maybeSingle();
       if (movieError) throw new Error(movieError.message);
       if (!movieRow) return null;
 
-      const [movie] = await hydrateMovies([movieRow as unknown as DbMovieRow]);
-      if (!movie) return null;
+      const typedMovie = movieRow as unknown as DbMovieRow;
 
-      const { data: episodeRows } = await client
-        .from("episodes")
-        .select("*")
-        .eq("movie_id", movie.id)
-        .order("episode_number", { ascending: true });
-      const siblings = await hydrateEpisodes((episodeRows ?? []) as unknown as DbEpisodeRow[]);
+      // Chạy song song: nạp thể loại của phim + toàn bộ tập kèm video_sources trong 1 truy vấn lồng nhau,
+      // cắt từ 4 vòng tuần tự xuống 1 lượt song song duy nhất (giảm ~200-400ms).
+      const [genreMap, episodesRes] = await Promise.all([
+        loadGenres([typedMovie.id]),
+        client
+          .from("episodes")
+          .select("id, movie_id, episode_number, title, slug, release_date, status, description, created_at, updated_at, video_sources(id, episode_id, provider, source_url, label, priority, created_at)")
+          .eq("movie_id", typedMovie.id)
+          .order("episode_number", { ascending: true }),
+      ]);
+
+      if (episodesRes.error) throw new Error(episodesRes.error.message);
+      const rawEpisodes = (episodesRes.data ?? []) as unknown as Array<
+        DbEpisodeRow & { video_sources?: DbSourceRow[] | null }
+      >;
+
+      const siblings = sortEpisodes(
+        rawEpisodes.map((row) => {
+          const sources = [...(row.video_sources ?? [])]
+            .sort((a, b) => a.priority - b.priority)
+            .map(mapSource);
+          return mapEpisode(row, sources);
+        }),
+      );
+
       const episode = siblings.find((e) => e.slug === episodeSlug && e.status === "published");
       if (!episode) return null;
+
+      const movie: MovieWithStats = {
+        ...mapMovie(typedMovie, genreMap.get(typedMovie.id) ?? []),
+        episodeCount: siblings.length,
+        publishedEpisodeCount: siblings.filter((e) => e.status === "published").length,
+      };
+
       return { episode, movie, siblings };
     },
 
@@ -1002,36 +1034,38 @@ export function createSupabaseStore(client: Db): DataStore {
       if (error) throw new Error(error.message);
       const rows = (data ?? []) as unknown as DbScheduleRow[];
 
-      // Phim và tập được nạp song song. Trước đây hai khối này chạy nối tiếp,
-      // mỗi khối gồm cả một vòng `hydrateMovies` (2 truy vấn) nên riêng lịch
-      // chiếu đã tốn 4 vòng tròn liên tiếp.
+      // Lấy danh sách ID phim và tập trong tuần
       const movieIds = Array.from(new Set(rows.map((r) => r.movie_id)));
       const episodeIds = rows.map((r) => r.episode_id).filter((id): id is string => Boolean(id));
 
+      // Chỉ query đúng các trường cần thiết cho ScheduleEvent, bỏ qua hydrateMovies và hydrateEpisodes
+      // để loại bỏ 3 truy vấn dư thừa (movie_genres, đếm episode, video_sources).
       const [movieMap, episodeMap] = await Promise.all([
         movieIds.length === 0
-          ? Promise.resolve(new Map<string, Movie>())
+          ? Promise.resolve(new Map<string, ScheduleMovie>())
           : client
             .from("movies")
-            .select("*")
+            .select("id, slug, title, poster_url")
             .in("id", movieIds)
-            .then(async ({ data: movieRows }) => {
-              const hydrated = await hydrateMovies(
-                (movieRows ?? []) as unknown as DbMovieRow[],
-              );
-              return new Map(hydrated.map((m) => [m.id, m]));
+            .then(({ data: movieRows }) => {
+              const map = new Map<string, ScheduleMovie>();
+              for (const m of (movieRows ?? []) as unknown as Array<{ id: string; slug: string; title: string; poster_url: string | null }>) {
+                map.set(m.id, { id: m.id, slug: m.slug, title: m.title, posterUrl: m.poster_url });
+              }
+              return map;
             }),
         episodeIds.length === 0
-          ? Promise.resolve(new Map<string, Episode>())
+          ? Promise.resolve(new Map<string, ScheduleEpisode>())
           : client
             .from("episodes")
-            .select("*")
+            .select("id, slug, title, episode_number, status")
             .in("id", episodeIds)
-            .then(async ({ data: episodeRows }) => {
-              const hydrated = await hydrateEpisodes(
-                (episodeRows ?? []) as unknown as DbEpisodeRow[],
-              );
-              return new Map(hydrated.map((e) => [e.id, e]));
+            .then(({ data: episodeRows }) => {
+              const map = new Map<string, ScheduleEpisode>();
+              for (const e of (episodeRows ?? []) as unknown as Array<{ id: string; slug: string; title: string; episode_number: number; status: Episode["status"] }>) {
+                map.set(e.id, { id: e.id, slug: e.slug, title: e.title, episodeNumber: e.episode_number, status: e.status });
+              }
+              return map;
             }),
       ]);
 
@@ -1060,9 +1094,14 @@ export function createSupabaseStore(client: Db): DataStore {
       if (rows.length === 0) return [];
 
       const movieIds = Array.from(new Set(rows.map((r) => r.movie_id)));
-      const { data: movieRows } = await client.from("movies").select("*").in("id", movieIds);
-      const movies = await hydrateMovies((movieRows ?? []) as unknown as DbMovieRow[]);
-      const movieMap = new Map(movies.map((m) => [m.id, m]));
+      const { data: movieRows } = await client
+        .from("movies")
+        .select("id, slug, title, poster_url")
+        .in("id", movieIds);
+      const movieMap = new Map<string, ScheduleMovie>();
+      for (const m of (movieRows ?? []) as unknown as Array<{ id: string; slug: string; title: string; poster_url: string | null }>) {
+        movieMap.set(m.id, { id: m.id, slug: m.slug, title: m.title, posterUrl: m.poster_url });
+      }
 
       return rows.map((row) => mapSchedule(row, movieMap.get(row.movie_id) ?? null, null));
     },
@@ -1075,9 +1114,14 @@ export function createSupabaseStore(client: Db): DataStore {
       if (error) throw new Error(error.message);
       const rows = (data ?? []) as unknown as DbScheduleRow[];
       const movieIds = Array.from(new Set(rows.map((r) => r.movie_id)));
-      const { data: movieRows } = await client.from("movies").select("*").in("id", movieIds);
-      const movies = await hydrateMovies((movieRows ?? []) as unknown as DbMovieRow[]);
-      const movieMap = new Map(movies.map((m) => [m.id, m]));
+      const { data: movieRows } = await client
+        .from("movies")
+        .select("id, slug, title, poster_url")
+        .in("id", movieIds);
+      const movieMap = new Map<string, ScheduleMovie>();
+      for (const m of (movieRows ?? []) as unknown as Array<{ id: string; slug: string; title: string; poster_url: string | null }>) {
+        movieMap.set(m.id, { id: m.id, slug: m.slug, title: m.title, posterUrl: m.poster_url });
+      }
       return rows.map((row) => mapSchedule(row, movieMap.get(row.movie_id) ?? null, null));
     },
 
@@ -1280,6 +1324,7 @@ export function createSupabaseStore(client: Db): DataStore {
         scheduleResult,
         recentMoviesResult,
         recentPostsResult,
+        upcomingEvents,
       ] = await Promise.all([
         client.from("movies").select("id", { count: "exact", head: true }),
         client.from("movies").select("id", { count: "exact", head: true }).eq("status", "published"),
@@ -1293,12 +1338,10 @@ export function createSupabaseStore(client: Db): DataStore {
           .eq("status", "scheduled"),
         client.from("movies").select("*").order("updated_at", { ascending: false }).limit(5),
         client.from("posts").select(POST_LIST_COLUMNS).order("updated_at", { ascending: false }).limit(5),
-      ]);
-
-      const [recentMovies, upcoming] = await Promise.all([
-        hydrateMovies((recentMoviesResult.data ?? []) as unknown as DbMovieRow[]),
         this.listUpcomingSchedule(5),
       ]);
+
+      const recentMovies = await hydrateMovies((recentMoviesResult.data ?? []) as unknown as DbMovieRow[]);
       const recentPosts = ((recentPostsResult.data ?? []) as unknown as DbPostRow[]).map((r) =>
         mapPost(r, []),
       );
@@ -1312,7 +1355,7 @@ export function createSupabaseStore(client: Db): DataStore {
         upcomingScheduleCount: scheduleResult.count ?? 0,
         recentMovies,
         recentPosts,
-        upcomingEvents: upcoming,
+        upcomingEvents,
       };
     },
   };

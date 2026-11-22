@@ -38,37 +38,48 @@ export function ScheduleStrip({ events }: { events: ScheduleEvent[] }) {
 
   return (
     <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {shown.map((event) => (
-        <li key={event.id}>
-          <Link
-            href={event.episodeId ? `/xem/${event.movie?.slug ?? ""}/${event.episode?.slug ?? ""}` : `/phim/${event.movie?.slug ?? ""}`}
-            className="group flex h-full gap-3 rounded-md border border-ink-700 bg-ink-850/60 p-3 transition-colors hover:border-gold-500/35 hover:bg-ink-800"
-          >
-            <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded border border-ink-700 bg-ink-850">
-              {event.movie?.posterUrl && (
-                <SafeImage src={event.movie.posterUrl} alt="" fill sizes="96px" className="object-cover" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-serif text-sm text-parchment-100 group-hover:text-gold-200">
-                {event.movie?.title ?? "Phim"}
-              </p>
-              <p className="mt-0.5 text-xs text-parchment-300/85">
-                Tập {event.episodeNumber ?? "?"} · {formatTime(event.scheduledAt)}
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                <Badge variant={STATUS_VARIANTS[event.status]}>
-                  {STATUS_LABELS[event.status]}
-                </Badge>
-                <span className="inline-flex items-center gap-1 text-xs text-mist-500">
-                  <CalendarClock className="size-3" aria-hidden="true" />
-                  {toZonedDateKey(new Date(event.scheduledAt))}
-                </span>
+      {shown.map((event) => {
+        const isLiveOrAired = event.status === "aired";
+        return (
+          <li key={event.id}>
+            <Link
+              href={
+                event.episodeId
+                  ? `/xem/${event.movie?.slug ?? ""}/${event.episode?.slug ?? ""}`
+                  : `/phim/${event.movie?.slug ?? ""}`
+              }
+              className={`group flex h-full items-center gap-3.5 rounded-xl border p-3 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 ${
+                isLiveOrAired
+                  ? "border-gold-400/45 bg-ink-800/95 shadow-[0_0_24px_-8px_rgba(244,184,96,0.22)] hover:border-gold-300/70"
+                  : "border-ink-700 bg-ink-800/70 hover:border-gold-400/40 hover:bg-ink-800"
+              }`}
+            >
+              <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded-lg border border-ink-700 bg-ink-850">
+                {event.movie?.posterUrl && (
+                  <SafeImage src={event.movie.posterUrl} alt="" fill sizes="96px" className="object-cover" />
+                )}
               </div>
-            </div>
-          </Link>
-        </li>
-      ))}
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-serif text-base font-semibold text-parchment-100 transition-colors group-hover:text-gold-300">
+                  {event.movie?.title ?? "Phim"}
+                </p>
+                <p className="mt-0.5 text-xs font-medium tabular-nums text-mist-300">
+                  Tập {event.episodeNumber ?? "?"} · {formatTime(event.scheduledAt)}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge variant={STATUS_VARIANTS[event.status]}>
+                    {STATUS_LABELS[event.status]}
+                  </Badge>
+                  <span className="inline-flex items-center gap-1 text-xs tabular-nums text-mist-400">
+                    <CalendarClock className="size-3" aria-hidden="true" />
+                    {toZonedDateKey(new Date(event.scheduledAt))}
+                  </span>
+                </div>
+              </div>
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

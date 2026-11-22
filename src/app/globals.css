@@ -17,35 +17,32 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Design tokens
-   Ink-blue base, champagne gold accent, restrained jade and rouge.
+   Design tokens — Đêm Đèn Lồng Giấy Gió (Lantern-Lit Courtyard Night)
+   Deep indigo night ground, warm rice-paper text, lantern-amber active edge.
 --------------------------------------------------------------------------- */
 :root {
-  --bg-obsidian: #0b0c10;
-  --bg-surface: #141720;
-  --accent-cinnabar: #c83e37;
-  --accent-cinnabar-hover: #e04f47;
-  --accent-gold: #d4af37;
-  --border-gold-subtle: rgba(212, 175, 55, 0.18);
-  --text-primary: #f3f4f6;
-  --text-muted: #9ca3af;
+  --bg-obsidian: #0d1321;
+  --bg-surface: #151e32;
+  --accent-cinnabar: #c84b31;
+  --accent-cinnabar-hover: #e05a3e;
+  --accent-gold: #f4b860;
+  --border-gold-subtle: rgba(244, 184, 96, 0.22);
+  --text-primary: #f5efe6;
+  --text-muted: #a4b1c6;
 
-  --background: #0b0c10;
-  /* Chữ chính: sáng hơn trước (#e8e2d5 -> #f3f4f6) để tách khỏi nền tốt hơn. */
-  --foreground: #f3f4f6;
-  --surface: #141720;
-  --surface-raised: #191d28;
-  --surface-sunken: #0b0c10;
-  --border: #1e2b38;
-  --border-strong: #2a3948;
-  /* Chữ phụ: trước là #93a3b5 nhưng gần như không được dùng; nay là token
-     chính thức cho metadata/ghi chú thay cho ink-500/600 (quá tối). */
-  --muted: #a9b8ca;
-  --accent: #d4af37;
-  --accent-soft: #f3e5ab;
-  --jade: #43a186;
-  --rouge: #c83e37;
-  --ring: #d4af37;
+  --background: #0d1321;
+  --foreground: #f5efe6;
+  --surface: #151e32;
+  --surface-raised: #1c2742;
+  --surface-sunken: #080c16;
+  --border: #24324d;
+  --border-strong: #334568;
+  --muted: #a4b1c6;
+  --accent: #f4b860;
+  --accent-soft: #f8ca82;
+  --jade: #3fa384;
+  --rouge: #c84b31;
+  --ring: #f4b860;
 }
 
 @layer base {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { isDemoMode } from "@/lib/env";
 import { isUuid } from "@/lib/data/uuid";
+import { ttlCacheGet, ttlCacheSet } from "@/lib/data/ttl-cache";
 import { createPublicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 
@@ -83,27 +84,47 @@ export async function getMoviesCommunityStats(
   const fallback = getFallbackStore();
   const result: Record<string, MovieCommunityStats> = {};
 
+  if (movieIds.length === 0) {
+    return result;
+  }
+
+  const missingIds: string[] = [];
+
   for (const id of movieIds) {
     const mem = fallback.statsByMovieId.get(id);
-    result[id] = mem
-      ? {
+    const cached = ttlCacheGet<MovieCommunityStats>(`comm-stat:${id}`);
+
+    if (cached.hit && cached.value) {
+      result[id] = {
+        movieId: id,
+        views: Math.max(cached.value.views, mem?.views ?? 0),
+        reactions: {
+          tuyet_pham: Math.max(cached.value.reactions.tuyet_pham, mem?.reactions.tuyet_pham ?? 0),
+          dao_huu: Math.max(cached.value.reactions.dao_huu, mem?.reactions.dao_huu ?? 0),
+          hong_tap: Math.max(cached.value.reactions.hong_tap, mem?.reactions.hong_tap ?? 0),
+          cam_dong: Math.max(cached.value.reactions.cam_dong, mem?.reactions.cam_dong ?? 0),
+        },
+      };
+    } else {
+      result[id] = mem
+        ? {
           movieId: id,
           views: mem.views,
           reactions: { ...mem.reactions },
         }
-      : {
+        : {
           movieId: id,
           views: 0,
           reactions: { ...DEFAULT_REACTIONS },
         };
+
+      if (!isDemoMode && isUuid(id)) {
+        missingIds.push(id);
+      }
+    }
   }
 
-  if (isDemoMode || movieIds.length === 0) {
-    return result;
-  }
-
-  const validUuidIds = movieIds.filter(isUuid);
-  if (validUuidIds.length === 0) {
+  if (isDemoMode || missingIds.length === 0) {
     return result;
   }
 
@@ -112,19 +133,21 @@ export async function getMoviesCommunityStats(
     const { data, error } = await client
       .from("movies")
       .select("id, views, reactions")
-      .in("id", validUuidIds);
+      .in("id", missingIds);
 
     if (!error && Array.isArray(data)) {
+      const foundIds = new Set<string>();
       for (const row of data as unknown as Array<{
         id: string;
         views?: number | null;
         reactions?: unknown;
       }>) {
+        foundIds.add(row.id);
         const mem = fallback.statsByMovieId.get(row.id);
         const dbViews = Math.max(0, Number(row.views) || 0);
         const dbReactions = normalizeReactions(row.reactions);
 
-        result[row.id] = {
+        const stats: MovieCommunityStats = {
           movieId: row.id,
           views: Math.max(dbViews, mem?.views ?? 0),
           reactions: {
@@ -134,10 +157,25 @@ export async function getMoviesCommunityStats(
             cam_dong: Math.max(dbReactions.cam_dong, mem?.reactions.cam_dong ?? 0),
           },
         };
+        result[row.id] = stats;
+        ttlCacheSet(`comm-stat:${row.id}`, stats, 60);
+      }
+
+      for (const id of missingIds) {
+        if (!foundIds.has(id)) {
+          ttlCacheSet(`comm-stat:${id}`, result[id], 60);
+        }
+      }
+    } else if (error) {
+      // Nếu cột views/reactions chưa được thêm vào DB, cache fallback 5 phút để không bắn query lỗi mỗi lần tải trang
+      for (const id of missingIds) {
+        ttlCacheSet(`comm-stat:${id}`, result[id], 300);
       }
     }
   } catch {
-    // Graceful fallback: cột views/reactions chưa được tạo trên Supabase.
+    for (const id of missingIds) {
+      ttlCacheSet(`comm-stat:${id}`, result[id], 300);
+    }
   }
 
   return result;
@@ -155,6 +193,7 @@ export async function incrementMovieViewAction(movieId: string): Promise<{ views
   };
   current.views += 1;
   fallback.statsByMovieId.set(movieId, current);
+  ttlCacheSet(`comm-stat:${movieId}`, current, 60);
 
   if (isDemoMode || !isUuid(movieId)) {
     return { views: current.views };
@@ -170,6 +209,7 @@ export async function incrementMovieViewAction(movieId: string): Promise<{ views
     if (!rpcError && typeof rpcViews === "number") {
       current.views = Math.max(current.views, rpcViews);
       fallback.statsByMovieId.set(movieId, current);
+      ttlCacheSet(`comm-stat:${movieId}`, current, 60);
       return { views: current.views };
     }
 
@@ -185,6 +225,7 @@ export async function incrementMovieViewAction(movieId: string): Promise<{ views
       await client.from("movies").update({ views: nextViews }).eq("id", movieId);
       current.views = Math.max(current.views, nextViews);
       fallback.statsByMovieId.set(movieId, current);
+      ttlCacheSet(`comm-stat:${movieId}`, current, 60);
     }
   } catch {
     // Graceful fallback: không báo lỗi nếu DB chưa có cột views / RPC.
@@ -213,6 +254,7 @@ export async function incrementMovieReactionAction(
   };
   current.reactions[reactionKey] = (current.reactions[reactionKey] ?? 0) + 1;
   fallback.statsByMovieId.set(movieId, current);
+  ttlCacheSet(`comm-stat:${movieId}`, current, 60);
 
   if (isDemoMode || !isUuid(movieId)) {
     return { reactions: current.reactions };
@@ -234,6 +276,7 @@ export async function incrementMovieReactionAction(
         cam_dong: Math.max(current.reactions.cam_dong, normalized.cam_dong),
       };
       fallback.statsByMovieId.set(movieId, current);
+      ttlCacheSet(`comm-stat:${movieId}`, current, 60);
       return { reactions: current.reactions };
     }
 
@@ -249,6 +292,7 @@ export async function incrementMovieReactionAction(
       await client.from("movies").update({ reactions: existing }).eq("id", movieId);
       current.reactions = existing;
       fallback.statsByMovieId.set(movieId, current);
+      ttlCacheSet(`comm-stat:${movieId}`, current, 60);
     }
   } catch {
     // Graceful fallback: giữ nguyên dữ liệu trong bộ nhớ nếu DB chưa có cột reactions.

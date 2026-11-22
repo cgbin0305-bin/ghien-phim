@@ -98,7 +98,7 @@ export function SealStampButton({
         : "border border-gold-500/45 bg-ink-900/85 text-gold-200 hover:border-gold-400/80 hover:bg-gold-500/12";
 
   return (
-    <MotionConfig reducedMotion="never">
+    <MotionConfig reducedMotion="user">
       <motion.button
         type="button"
         tabIndex={tabIndex}

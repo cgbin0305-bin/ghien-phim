@@ -463,7 +463,7 @@ export function VideoPlayer({
       </div>
 
       {/* Thanh điều khiển Đa Server (Multi-Source Switcher) & Công cụ Trình phát */}
-      <MotionConfig reducedMotion="never">
+      <MotionConfig reducedMotion="user">
         <div className="relative z-50 flex flex-col gap-3 rounded-xl border border-ink-700/80 bg-ink-900/85 px-3.5 py-3 backdrop-blur-sm transition-all duration-300 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 pr-1 text-xs font-semibold uppercase tracking-wider text-gold-300/90 sm:text-sm">

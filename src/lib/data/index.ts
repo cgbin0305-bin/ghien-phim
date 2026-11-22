@@ -1,7 +1,7 @@
 import "server-only";
+import { cache } from "react";
 import type { DataStore } from "@/lib/data/types";
 import { createDemoStore } from "@/lib/data/demo-store";
-import { ttlCacheClear } from "@/lib/data/ttl-cache";
 import { hasSupabaseConfig } from "@/lib/env";
 
 /**
@@ -16,7 +16,6 @@ const globalStore = globalThis as typeof globalThis & {
   __gheienPhimPublicStore?: DataStore;
 };
 delete globalStore.__gheienPhimPublicStore;
-ttlCacheClear();
 
 export async function getStore(): Promise<DataStore> {
   if (!hasSupabaseConfig) {
@@ -50,7 +49,7 @@ export async function getReadOnlyStore(): Promise<DataStore> {
  * IMPORTANT: never use this store for admin pages or Server Actions - those
  * need the caller's session so that RLS grants write access.
  */
-export async function getPublicStore(): Promise<DataStore> {
+export const getPublicStore = cache(async function getPublicStore(): Promise<DataStore> {
   if (!hasSupabaseConfig) {
     if (!demoStore) demoStore = createDemoStore();
     return demoStore;
@@ -59,4 +58,4 @@ export async function getPublicStore(): Promise<DataStore> {
   const { getPublicSupabaseStore } = await import("@/lib/data/supabase-store");
   const { createCachedPublicStore } = await import("@/lib/data/cached-public-store");
   return createCachedPublicStore(getPublicSupabaseStore());
-}
+});
