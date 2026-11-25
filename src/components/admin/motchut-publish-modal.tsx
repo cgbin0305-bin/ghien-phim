@@ -271,7 +271,7 @@ export function MotChutPublishModal({
         thumbnail,
         description,
         tags: selectedTags,
-        completed,
+        ...(completed ? { completed: true } : {}),
         parts,
         updateFor: mode === "create" ? "" : updateFor,
         updateMode: mode === "create" ? "append" : mode,

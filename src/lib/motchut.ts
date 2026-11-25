@@ -399,7 +399,7 @@ export function validateAndBuildMotChutPayload(
     audio: input.audio ?? "Thuyết Minh",
     thumbnail,
     thumbnailFile: "",
-    description: (input.description ?? "").trim().slice(0, 2500),
+    description: (input.description ?? "").trim().replace(/\r\n/g, "\n").replace(/\r/g, "\n").slice(0, 2500),
     tags,
     ...(input.completed ? { completed: true } : {}),
     parts: cleanParts,
