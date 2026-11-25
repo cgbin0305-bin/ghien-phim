@@ -401,7 +401,7 @@ export function validateAndBuildMotChutPayload(
     thumbnailFile: "",
     description: (input.description ?? "").trim().slice(0, 2500),
     tags,
-    completed: Boolean(input.completed),
+    ...(input.completed ? { completed: true } : {}),
     parts: cleanParts,
   };
 
