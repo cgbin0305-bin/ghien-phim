@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,8 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { VideoSourcePreview } from "@/components/admin/video-source-preview";
+import { MotChutPublishModal } from "@/components/admin/motchut-publish-modal";
+import { sourcesToMotChutParts } from "@/lib/motchut";
 import { PROVIDER_HINTS } from "@/lib/video/provider";
 import { extractEpisodeNumbers } from "@/lib/episode-sort";
 import { slugify } from "@/lib/slug";
@@ -59,8 +61,19 @@ const formSchema = z.object({
   status: z.enum(["draft", "published"]),
 });
 
+export interface EpisodeMovieContext {
+  title: string;
+  originalTitle?: string | null;
+  synopsis?: string | null;
+  posterUrl?: string | null;
+  backdropUrl?: string | null;
+  releaseStatus?: "upcoming" | "airing" | "completed";
+  genres?: Array<{ name: string }>;
+}
+
 export function EpisodeForm({
   movieId,
+  movieContext,
   defaults,
   nextEpisodeNumber = 1,
   existingEpisodeNumbers = [],
@@ -69,6 +82,7 @@ export function EpisodeForm({
   onSuccess,
 }: {
   movieId: string;
+  movieContext?: EpisodeMovieContext;
   defaults: EpisodeFormDefaults;
   /** Số thứ tự tập tiếp theo được gợi ý tự động để không bị trùng khi thêm nhiều phần. */
   nextEpisodeNumber?: number;
@@ -100,6 +114,7 @@ export function EpisodeForm({
   );
   const [bulkLinks, setBulkLinks] = React.useState("");
   const [previewIndex, setPreviewIndex] = React.useState<number | null>(0);
+  const [motChutOpen, setMotChutOpen] = React.useState(false);
 
   const initialEpNumber =
     defaults.episodeNumber != null ? String(defaults.episodeNumber) : String(nextEpisodeNumber);
@@ -605,12 +620,36 @@ export function EpisodeForm({
 
       <div className="flex flex-wrap items-center gap-3">
         <SubmitButton pending={isSubmitting}>{submitLabel}</SubmitButton>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setMotChutOpen(true)}
+        >
+          <Send className="size-4" aria-hidden="true" />
+          Đăng bên Một Chút
+        </Button>
         <span className={cn("text-xs", status === "published" ? "text-jade-300/80" : "text-parchment-300/80")}>
           {status === "published"
             ? "Tập sẽ hiện công khai nếu phim cha đã xuất bản."
             : "Tập được lưu ở trạng thái bản nháp."}
         </span>
       </div>
+
+      <MotChutPublishModal
+        open={motChutOpen}
+        onOpenChange={setMotChutOpen}
+        contextMode="episode"
+        movieId={movieId}
+        prefill={{
+          title: movieContext?.title ?? "",
+          originalTitle: movieContext?.originalTitle ?? "",
+          thumbnail: movieContext?.backdropUrl || movieContext?.posterUrl || "",
+          description: movieContext?.synopsis ?? "",
+          tags: (movieContext?.genres ?? []).map((g) => g.name),
+          completed: movieContext?.releaseStatus === "completed",
+          parts: sourcesToMotChutParts(title, watch("episodeNumber"), sources),
+        }}
+      />
     </form>
   );
 }

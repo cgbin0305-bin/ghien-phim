@@ -12,9 +12,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { Plus } from "lucide-react";
+import { Plus, Send } from "lucide-react";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
-import { EpisodeForm } from "@/components/admin/episode-form";
+import { EpisodeForm, type EpisodeMovieContext } from "@/components/admin/episode-form";
+import { MotChutPublishModal } from "@/components/admin/motchut-publish-modal";
+import { sourcesToMotChutParts } from "@/lib/motchut";
 import {
   createEpisodeAction,
   deleteEpisodeAction,
@@ -35,17 +37,20 @@ export function EpisodeManager({
   movieId,
   movieSlug,
   movieStatus,
+  movieContext,
   episodes,
 }: {
   movieId: string;
   movieSlug: string;
   movieStatus: "draft" | "published";
+  movieContext?: EpisodeMovieContext;
   episodes: Episode[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
   const [editing, setEditing] = React.useState<Episode | null>(null);
   const [creating, setCreating] = React.useState(false);
+  const [motChutOpen, setMotChutOpen] = React.useState(false);
   const [pendingDelete, setPendingDelete] = React.useState<Episode | null>(null);
 
   const sortedEpisodes = React.useMemo(() => sortEpisodes(episodes), [episodes]);
@@ -71,10 +76,16 @@ export function EpisodeManager({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-serif text-lg font-semibold text-parchment-100">Danh sách tập</h2>
-        <Button type="button" onClick={() => setCreating(true)}>
-          <Plus aria-hidden="true" />
-          Thêm tập
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="secondary" onClick={() => setMotChutOpen(true)}>
+            <Send className="size-4" aria-hidden="true" />
+            Đăng bên Một Chút
+          </Button>
+          <Button type="button" onClick={() => setCreating(true)}>
+            <Plus aria-hidden="true" />
+            Thêm tập
+          </Button>
+        </div>
       </div>
 
       {sortedEpisodes.length === 0 ? (
@@ -186,6 +197,7 @@ export function EpisodeManager({
           </DialogHeader>
           <EpisodeForm
             movieId={movieId}
+            movieContext={movieContext}
             defaults={{}}
             nextEpisodeNumber={nextEpisodeNumber}
             existingEpisodeNumbers={existingEpisodeNumbers}
@@ -208,6 +220,7 @@ export function EpisodeManager({
           {editing && (
             <EpisodeForm
               movieId={movieId}
+              movieContext={movieContext}
               defaults={{
                 id: editing.id,
                 episodeNumber: editing.episodeNumber,
@@ -246,6 +259,34 @@ export function EpisodeManager({
         hiddenFields={
           pendingDelete ? { id: pendingDelete.id, movieId, confirm: pendingDelete.id } : undefined
         }
+      />
+      <MotChutPublishModal
+        open={motChutOpen}
+        onOpenChange={setMotChutOpen}
+        contextMode="episode"
+        movieId={movieId}
+        prefill={{
+          title: movieContext?.title ?? "",
+          originalTitle: movieContext?.originalTitle ?? "",
+          thumbnail: movieContext?.backdropUrl || movieContext?.posterUrl || "",
+          description: movieContext?.synopsis ?? "",
+          tags: (movieContext?.genres ?? []).map((g) => g.name),
+          completed: movieContext?.releaseStatus === "completed",
+          parts: sortedEpisodes
+            .flatMap((ep) =>
+              sourcesToMotChutParts(
+                ep.title,
+                ep.episodeNumber,
+                ep.sources.map((s) => ({
+                  provider: s.provider,
+                  sourceUrl: s.sourceUrl,
+                  label: s.label,
+                })),
+              ),
+            )
+            .filter((p) => Boolean(p.fbUrl?.trim() || p.ytUrl?.trim()))
+            .slice(0, 30),
+        }}
       />
     </div>
   );

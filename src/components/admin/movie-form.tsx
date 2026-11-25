@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Check, Info, Plus, Tags, X } from "lucide-react";
+import { Check, Info, Plus, Send, Tags, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { MotChutPublishModal } from "@/components/admin/motchut-publish-modal";
 import {
   createGenreAction,
   deleteGenreAction,
@@ -102,6 +103,7 @@ export function MovieForm({
   const [newGenreName, setNewGenreName] = React.useState("");
   const [addingGenre, setAddingGenre] = React.useState(false);
   const [quickDeleteMode, setQuickDeleteMode] = React.useState(false);
+  const [motChutOpen, setMotChutOpen] = React.useState(false);
 
   React.useEffect(() => {
     setGenreList(genres);
@@ -538,6 +540,14 @@ export function MovieForm({
 
       <div className="flex flex-wrap items-center gap-3 border-t border-ink-700 pt-6">
         <SubmitButton pending={isSubmitting}>{submitLabel}</SubmitButton>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setMotChutOpen(true)}
+        >
+          <Send className="size-4" aria-hidden="true" />
+          Đăng bên Một Chút
+        </Button>
         <Button type="button" variant="ghost" asChild>
           <a href="/admin/phim">Huỷ bỏ</a>
         </Button>
@@ -547,6 +557,23 @@ export function MovieForm({
           </p>
         )}
       </div>
+
+      <MotChutPublishModal
+        open={motChutOpen}
+        onOpenChange={setMotChutOpen}
+        contextMode="movie"
+        movieId={movieId}
+        prefill={{
+          title,
+          originalTitle: watch("originalTitle"),
+          thumbnail: watch("backdropUrl") || watch("posterUrl"),
+          description: watch("synopsis"),
+          tags: genreList
+            .filter((g) => selectedGenres.includes(g.id))
+            .map((g) => g.name),
+          completed: watch("releaseStatus") === "completed",
+        }}
+      />
     </form>
   );
 }

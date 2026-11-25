@@ -58,6 +58,15 @@ export default async function AdminEpisodesPage({ params }: { params: Promise<{ 
         movieId={movie.id}
         movieSlug={movie.slug}
         movieStatus={movie.status}
+        movieContext={{
+          title: movie.title,
+          originalTitle: movie.originalTitle,
+          synopsis: movie.synopsis,
+          posterUrl: movie.posterUrl,
+          backdropUrl: movie.backdropUrl,
+          releaseStatus: movie.releaseStatus,
+          genres: movie.genres,
+        }}
         episodes={episodes}
       />
     </div>
