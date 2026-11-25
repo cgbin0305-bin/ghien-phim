@@ -273,8 +273,8 @@ export function MotChutPublishModal({
         tags: selectedTags,
         completed,
         parts,
-        updateFor: mode === "create" ? undefined : updateFor,
-        updateMode: mode === "create" ? undefined : mode,
+        updateFor: mode === "create" ? "" : updateFor,
+        updateMode: mode === "create" ? "append" : mode,
       },
       hasEnvCode ? undefined : manualCode,
     );
